@@ -1,0 +1,30 @@
+name: mer-batch
+
+services:
+  batch:
+    build:
+      context: ..
+      dockerfile: deploy/Dockerfile.batch
+      args:
+        - GIT_SHA=${GIT_SHA:-local}
+    image: mer-batch:${GIT_SHA:-local}
+    container_name: mer-batch
+    restart: unless-stopped
+    env_file:
+      - env/.env
+    environment:
+      - GIT_SHA=${GIT_SHA:-local}
+    volumes:
+      - batch_data:/data
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    command: ["ingest-naver"]
+    networks:
+      - mer-net
+
+volumes:
+  batch_data:
+
+networks:
+  mer-net:
+    external: true

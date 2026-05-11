@@ -1,0 +1,141 @@
+{
+  "title": "Mer Platform Overview",
+  "uid": "mer-overview",
+  "version": 1,
+  "schemaVersion": 39,
+  "refresh": "30s",
+  "time": { "from": "now-1h", "to": "now" },
+  "panels": [
+    {
+      "id": 1,
+      "title": "Answer Request Rate (rpm)",
+      "type": "timeseries",
+      "gridPos": { "x": 0, "y": 0, "w": 8, "h": 8 },
+      "datasource": "Prometheus",
+      "targets": [
+        {
+          "expr": "sum(rate(mer_answer_requests_total[1m])) * 60",
+          "legendFormat": "total"
+        },
+        {
+          "expr": "sum by(intent) (rate(mer_answer_requests_total[1m])) * 60",
+          "legendFormat": "{{intent}}"
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "title": "Answer Latency (p50 / p95 / p99)",
+      "type": "timeseries",
+      "gridPos": { "x": 8, "y": 0, "w": 8, "h": 8 },
+      "datasource": "Prometheus",
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.50, rate(mer_answer_latency_seconds_bucket[5m]))",
+          "legendFormat": "p50"
+        },
+        {
+          "expr": "histogram_quantile(0.95, rate(mer_answer_latency_seconds_bucket[5m]))",
+          "legendFormat": "p95"
+        },
+        {
+          "expr": "histogram_quantile(0.99, rate(mer_answer_latency_seconds_bucket[5m]))",
+          "legendFormat": "p99"
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "title": "Error Rate",
+      "type": "timeseries",
+      "gridPos": { "x": 16, "y": 0, "w": 8, "h": 8 },
+      "datasource": "Prometheus",
+      "targets": [
+        {
+          "expr": "sum(rate(mer_answer_requests_total{status=\"error\"}[1m])) * 60",
+          "legendFormat": "errors/min"
+        },
+        {
+          "expr": "sum(rate(mer_llm_errors_total[1m])) * 60",
+          "legendFormat": "llm errors/min"
+        }
+      ]
+    },
+    {
+      "id": 4,
+      "title": "Intent Distribution",
+      "type": "piechart",
+      "gridPos": { "x": 0, "y": 8, "w": 8, "h": 8 },
+      "datasource": "Prometheus",
+      "targets": [
+        {
+          "expr": "sum by(intent) (mer_answer_requests_total)",
+          "legendFormat": "{{intent}}"
+        }
+      ]
+    },
+    {
+      "id": 5,
+      "title": "LLM Calls by Task",
+      "type": "timeseries",
+      "gridPos": { "x": 8, "y": 8, "w": 8, "h": 8 },
+      "datasource": "Prometheus",
+      "targets": [
+        {
+          "expr": "sum by(task) (rate(mer_llm_calls_total[1m])) * 60",
+          "legendFormat": "{{task}}"
+        }
+      ]
+    },
+    {
+      "id": 6,
+      "title": "Retrieved Nodes Distribution",
+      "type": "timeseries",
+      "gridPos": { "x": 16, "y": 8, "w": 8, "h": 8 },
+      "datasource": "Prometheus",
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.50, rate(mer_retrieve_nodes_count_bucket[5m]))",
+          "legendFormat": "p50 nodes"
+        },
+        {
+          "expr": "histogram_quantile(0.95, rate(mer_retrieve_nodes_count_bucket[5m]))",
+          "legendFormat": "p95 nodes"
+        }
+      ]
+    },
+    {
+      "id": 7,
+      "title": "Requests — 1h total",
+      "type": "stat",
+      "gridPos": { "x": 0, "y": 16, "w": 4, "h": 4 },
+      "datasource": "Prometheus",
+      "targets": [
+        { "expr": "sum(increase(mer_answer_requests_total[1h]))", "legendFormat": "requests" }
+      ]
+    },
+    {
+      "id": 8,
+      "title": "Rejected (needs_fresh + internal_db)",
+      "type": "stat",
+      "gridPos": { "x": 4, "y": 16, "w": 4, "h": 4 },
+      "datasource": "Prometheus",
+      "targets": [
+        { "expr": "sum(increase(mer_answer_requests_total{status=\"rejected\"}[1h]))", "legendFormat": "rejected" }
+      ]
+    },
+    {
+      "id": 9,
+      "title": "Avg Latency (1h)",
+      "type": "stat",
+      "gridPos": { "x": 8, "y": 16, "w": 4, "h": 4 },
+      "datasource": "Prometheus",
+      "targets": [
+        {
+          "expr": "rate(mer_answer_latency_seconds_sum[1h]) / rate(mer_answer_latency_seconds_count[1h])",
+          "legendFormat": "avg sec"
+        }
+      ]
+    }
+  ]
+}

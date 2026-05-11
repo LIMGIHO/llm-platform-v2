@@ -1,0 +1,39 @@
+name: mer-obs
+
+services:
+  prometheus:
+    image: prom/prometheus:v2.54.1
+    container_name: mer-prometheus
+    restart: unless-stopped
+    volumes:
+      - ./env/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prom_data:/prometheus
+    ports:
+      - "9090:9090"
+    networks:
+      - mer-net
+
+  grafana:
+    image: grafana/grafana:11.2.2
+    container_name: mer-grafana
+    restart: unless-stopped
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=${GF_ADMIN_PASSWORD:-admin}
+      - GF_USERS_ALLOW_SIGN_UP=false
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./env/grafana/provisioning:/etc/grafana/provisioning:ro
+    ports:
+      - "3000:3000"
+    depends_on:
+      - prometheus
+    networks:
+      - mer-net
+
+volumes:
+  prom_data:
+  grafana_data:
+
+networks:
+  mer-net:
+    external: true

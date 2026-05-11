@@ -1,0 +1,12 @@
+.git
+.venv
+__pycache__
+*.pyc
+.pytest_cache
+.claude
+.DS_Store
+tmp_deploy
+*.tar
+node_modules
+data/
+storage/

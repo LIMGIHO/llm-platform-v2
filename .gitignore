@@ -1,0 +1,27 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+.venv/
+.env
+dist/
+*.egg-info/
+
+# uv
+uv.lock
+
+# data volumes (never commit actual data)
+data/
+
+# IDE
+.DS_Store
+.idea/
+.vscode/
+
+# test / coverage
+.pytest_cache/
+.coverage
+htmlcov/
+
+# docker
+*.log

@@ -1,0 +1,46 @@
+###############################################################################
+# Stage 1: builder
+###############################################################################
+FROM python:3.12-slim AS builder
+
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 \
+    UV_SYSTEM_PYTHON=1
+
+# kiwipiepy 빌드 의존성
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    build-essential \
+    && rm -rf /var/lib/apt/lists/*
+
+RUN pip install --no-cache-dir uv
+
+WORKDIR /workspace
+
+COPY pyproject.toml uv.lock ./
+
+# batch + 공통 의존성 설치 (lockfile 고정)
+RUN uv sync --frozen --no-dev --group batch --no-install-project
+
+###############################################################################
+# Stage 2: runtime
+###############################################################################
+FROM python:3.12-slim AS runtime
+
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 \
+    PATH="/workspace/.venv/bin:${PATH}"
+
+COPY --from=builder /workspace/.venv /workspace/.venv
+
+WORKDIR /workspace
+
+ARG GIT_SHA=local
+ENV GIT_SHA=${GIT_SHA}
+
+COPY app/  ./app/
+COPY batch/ ./batch/
+
+VOLUME ["/data"]
+
+ENTRYPOINT ["python", "-m", "batch.main"]
+CMD ["--help"]

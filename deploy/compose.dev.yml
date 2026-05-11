@@ -1,0 +1,25 @@
+name: mer-dev
+
+services:
+  app:
+    build:
+      context: ..
+      dockerfile: deploy/Dockerfile.app
+      target: dev
+    container_name: mer-app-dev
+    env_file:
+      - env/.env
+    volumes:
+      - ../app:/workspace/app:cached
+      - ../batch:/workspace/batch:cached
+    command: uvicorn app.mer_persona.main:app --host 0.0.0.0 --port 8000 --reload
+    ports:
+      - "8000:8000"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    networks:
+      - mer-net
+
+networks:
+  mer-net:
+    external: true

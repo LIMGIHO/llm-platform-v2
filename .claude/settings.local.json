@@ -1,0 +1,25 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(chmod +x /Users/limgiho/Desktop/Source/llm-platform-v2/infra/scripts/*.sh)",
+      "Bash(python -m pytest tests/unit/test_prompt_builder.py tests/unit/test_comment_loader.py tests/unit/test_style_pack_builder.py tests/unit/test_evidence_builder.py -v --tb=short)",
+      "Bash(python3 -m pytest tests/unit/test_prompt_builder.py tests/unit/test_comment_loader.py tests/unit/test_style_pack_builder.py tests/unit/test_evidence_builder.py -v --tb=short)",
+      "Bash(uv run *)",
+      "Bash(~/.local/bin/uv run *)",
+      "Bash(python3 -m pytest tests/unit/test_style_pack_builder.py -v)",
+      "Bash(export PATH=\"$HOME/.local/bin:$HOME/.cargo/bin:$PATH\")",
+      "Read(//Users/limgiho/**)",
+      "Bash(/Users/limgiho/.local/bin/uv run *)",
+      "Bash(psql \"postgresql://llm-platform:llm-platform@192.168.219.104:5432/llm-platform\" -c \"SELECT 1\")",
+      "Bash(psql \"postgresql://postgres:postgres@192.168.219.104:5432/llm-platform\" -c \"SELECT 1\")",
+      "Bash(sshpass -p \"1234\" ssh -o StrictHostKeyChecking=no server@192.168.219.104 \"docker exec mer-postgres env\")",
+      "Bash(psql \"postgresql://llm-platform:1234@192.168.219.105:5432/llm-platform\" -c \"SELECT count\\(*\\) FROM mer_blog_posts\")",
+      "Bash(psql \"postgresql://llm-platform:1234@192.168.219.105:5432/llm-platform\" -c \"SELECT version\\(\\)\")",
+      "Bash(psql postgresql://llm:llm@localhost:5432/llm_platform -c ' *)",
+      "Bash(curl -s \"https://m.blog.naver.com/api/blogs/ranto28/post-list?categoryNo=0&page=1&pageSize=5\")",
+      "Bash(python3 -m json.tool)",
+      "Bash(curl -s -H 'User-Agent: Mozilla/5.0 \\(iPhone; CPU iPhone OS 17_0 like Mac OS X\\) AppleWebKit/605.1.15 \\(KHTML, like Gecko\\) Version/17.0 Mobile/15E148 Safari/604.1' 'https://m.blog.naver.com/api/blogs/ranto28/post-list?categoryNo=0&page=1&pageSize=5')",
+      "Bash(curl -s -H 'User-Agent: Mozilla/5.0' https://rss.blog.naver.com/ranto28.xml)"
+    ]
+  }
+}
