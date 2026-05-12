@@ -12,6 +12,13 @@ from app.shared.db.models import MerBlogPost
 
 KST = timezone(timedelta(hours=9))
 _EXPLICIT_MD = re.compile(r"(?:(\d{4})년\s*)?(\d{1,2})월\s*(\d{1,2})일")
+_KOREAN_DAYS_AGO = re.compile(r"(하루|이틀|사흘|나흘|닷새|엿새|이레|여드레|아흐레|열흘)\s*전")
+_NUMERIC_DAYS_AGO = re.compile(r"(\d+)\s*일\s*전")
+_KOREAN_DAYS_MAP = {
+    "하루": 1, "이틀": 2, "사흘": 3, "나흘": 4,
+    "닷새": 5, "엿새": 6, "이레": 7, "여드레": 8,
+    "아흐레": 9, "열흘": 10,
+}
 
 
 @dataclass(frozen=True)
@@ -54,6 +61,20 @@ def parse_blog_post_list_query(query: str, *, now: datetime | None = None) -> Bl
         target = today - timedelta(days=2)
         start, end = _day_range(target)
         return BlogPostListQuery(start=start, end=end, basis=basis, limit=limit, label="그저께")
+
+    m = _KOREAN_DAYS_AGO.search(text)
+    if m:
+        days = _KOREAN_DAYS_MAP[m.group(1)]
+        target = today - timedelta(days=days)
+        start, end = _day_range(target)
+        return BlogPostListQuery(start=start, end=end, basis=basis, limit=limit, label=m.group(0))
+
+    m = _NUMERIC_DAYS_AGO.search(text)
+    if m:
+        days = int(m.group(1))
+        target = today - timedelta(days=days)
+        start, end = _day_range(target)
+        return BlogPostListQuery(start=start, end=end, basis=basis, limit=limit, label=m.group(0))
 
     if "어제" in text:
         target = today - timedelta(days=1)
