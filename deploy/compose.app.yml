@@ -40,6 +40,9 @@ services:
       - /var/run/docker.sock:/var/run/docker.sock:ro
     extra_hosts:
       - "host.docker.internal:host-gateway"
+      - "postgres:192.168.219.105"
+      - "qdrant:192.168.219.105"
+      - "redis:192.168.219.105"
       # depends_on:
       # tei-reranker:
       #   condition: service_healthy
