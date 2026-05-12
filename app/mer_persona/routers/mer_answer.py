@@ -64,8 +64,8 @@ async def _load_recent_turns(
         return []
 
 
-async def _retrieve_nodes(query: str, top_k: int, settings: Settings):
-    queries = await query_rewriter.rewrite(query)
+async def _retrieve_nodes(query: str, top_k: int, settings: Settings, llm: OpenAILike | None = None):
+    queries = await query_rewriter.rewrite(query, llm=llm)
     search_query = queries[0]
 
     # mer_blog(블로그 포스트) + mer_comments(댓글) 동시 검색
@@ -302,7 +302,7 @@ async def answer(
     # ── 6. Retrieve ───────────────────────────────────────────────────────
     t_s = time.monotonic()
     try:
-        nodes = await _retrieve_nodes(effective_query, req.top_k, settings)
+        nodes = await _retrieve_nodes(effective_query, req.top_k, settings, llm=llm)
     except Exception as exc:
         logger.error("answer.retrieve_error", error=str(exc))
         ANSWER_REQUESTS.labels(intent=str(route), status="error").inc()

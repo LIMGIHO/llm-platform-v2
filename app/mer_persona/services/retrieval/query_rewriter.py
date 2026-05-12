@@ -94,10 +94,76 @@ async def contextual_rewrite(
         return query
 
 
+# ── Search query rewriter ─────────────────────────────────────────────────────
+# 투자 커뮤니티 슬랭("떡밥", "재료", "세력" 등)을 문서 어휘와 가까운 검색어로 변환
+
+_SEARCH_SLANG_PAT = re.compile(
+    r"떡밥|세력|작전주?|주포|(?:재료|모멘텀)\s*(?:가|이|는|은)?\s*(?:뭐|무엇|있|알려|없)",
+    re.IGNORECASE,
+)
+
+_SEARCH_REWRITE_SYSTEM = """\
+너는 투자 블로그 검색 쿼리 최적화 도우미다.
+사용자의 질문을 블로그 본문에 실제로 등장하는 어휘로 다시 써라.
+
+규칙:
+- 투자 커뮤니티 슬랭을 공식적인 투자 용어로 바꿔라.
+- 다시 쓸 필요가 없으면 "rewritten": null 을 반환해라.
+- JSON 한 줄만 반환해라.
+
+예시:
+Q: 인보사 떡밥이 뭐야?
+A: {"rewritten": "인보사 핵심 투자 이슈 관전포인트"}
+
+Q: 삼성바이오 재료가 뭐야?
+A: {"rewritten": "삼성바이오 주가 상승 핵심 재료 이슈"}
+
+Q: HLB 세력이 있어?
+A: {"rewritten": "HLB 수급 기관 외국인 매수 이슈"}
+
+Q: 최근 반도체 이슈 정리해줘
+A: {"rewritten": null}
+
+Q: 오늘 코스피 어때?
+A: {"rewritten": null}
+"""
+
+
+def _needs_search_rewrite(query: str) -> bool:
+    return bool(_SEARCH_SLANG_PAT.search(query.strip()))
+
+
 async def rewrite(query: str, llm: OpenAILike | None = None) -> list[str]:
     """query를 검색에 적합한 형태로 변환해 반환.
 
-    M3: 원문 그대로 반환.
-    M3+: HyDEQueryTransform — 가상 답변 생성 후 임베딩으로 dense 검색 강화.
+    llm이 없거나 슬랭 패턴이 없으면 원문을 그대로 반환한다.
+    LLM 오류 시 원문 반환 (낙관적 fallback).
     """
-    return [query]
+    if llm is None or not _needs_search_rewrite(query):
+        return [query]
+
+    try:
+        from llama_index.core.llms import ChatMessage
+
+        messages = [
+            ChatMessage(role="system", content=_SEARCH_REWRITE_SYSTEM),
+            ChatMessage(role="user", content=f"Q: {query}"),
+        ]
+        response = await llm.achat(messages)
+        raw = response.message.content or ""
+
+        match = re.search(r"\{.*?\}", raw, re.DOTALL)
+        if not match:
+            return [query]
+        data = json.loads(match.group())
+        rewritten: str | None = data.get("rewritten")
+
+        if rewritten and rewritten != query:
+            logger.info("search_rewrite.done", original=query[:60], rewritten=rewritten[:80])
+            return [rewritten]
+
+        return [query]
+
+    except Exception as exc:
+        logger.warning("search_rewrite.error", error=str(exc))
+        return [query]
