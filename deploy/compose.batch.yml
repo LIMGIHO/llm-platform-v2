@@ -15,15 +15,12 @@ services:
     environment:
       - GIT_SHA=${GIT_SHA:-local}
     volumes:
-      - batch_data:/data
+      - /mnt/c/Source/mer-v2/data:/data
     extra_hosts:
       - "host.docker.internal:host-gateway"
     command: ["ingest-naver"]
     networks:
       - mer-net
-
-volumes:
-  batch_data:
 
 networks:
   mer-net:
