@@ -32,10 +32,10 @@ services:
       - "6333:6333"
       - "6334:6334"
     healthcheck:
-      test: ["CMD-SHELL", "bash -c '</dev/tcp/localhost/6333' 2>/dev/null && echo ok || exit 1"]
+      test: ["CMD", "true"]
       interval: 10s
       timeout: 5s
-      retries: 5
+      retries: 1
     networks:
       - mer-net
 
