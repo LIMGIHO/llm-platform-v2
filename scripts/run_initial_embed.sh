@@ -21,7 +21,7 @@ DOCKER_RUN="docker run --rm \
   --env-file C:/source/mer-v2/deploy/env/.env \
   --add-host host.docker.internal:host-gateway \
   --network mer-net \
-  --volume mer-batch_batch_data:/data \
+  --volume /mnt/c/Source/mer-v2/data:/data \
   ${IMAGE_NAME}:${IMAGE_TAG}"
 
 echo "================================================="
