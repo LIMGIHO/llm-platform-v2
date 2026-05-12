@@ -21,7 +21,7 @@ def run() -> None:
     with get_sync_session() as session:
         rows = session.execute(
             sa_text(
-                "SELECT text, source_id, chunk_no, hash, metadata_ FROM mer_nodes "
+                "SELECT text, source_id, chunk_no, hash, metadata FROM mer_nodes "
                 "WHERE source_type = 'blog' ORDER BY source_id, chunk_no"
             )
         ).fetchall()
@@ -34,7 +34,7 @@ def run() -> None:
     from llama_index.core.schema import TextNode
 
     nodes = []
-    for text, source_id, chunk_no, node_hash, meta in rows:
+    for text, source_id, chunk_no, node_hash, meta in rows:  # noqa: A001
         node = TextNode(
             text=text,
             id_=node_hash,
