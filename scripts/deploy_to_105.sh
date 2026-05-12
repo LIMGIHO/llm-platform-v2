@@ -66,12 +66,11 @@ rm -rf ./tmp_deploy
 
 # ── 4. Docker Compose 실행 ────────────────────────────────────────────────
 echo "[4/4] 기존 컨테이너 정리 후 재기동 중..."
-$SSH "powershell -Command \"\
-  Write-Host 'DOCKER_CONFIG=' \$env:DOCKER_CONFIG; \
-  Write-Host 'DOCKER_HOST=' \$env:DOCKER_HOST; \
-  Set-Location '$REMOTE_DIR'; \
-  wsl -d Ubuntu -- bash -c 'docker stop postgres mer-postgres mer-qdrant mer-redis 2>/dev/null; docker rm postgres mer-postgres mer-qdrant mer-redis 2>/dev/null; true'; \
-  docker compose -f deploy/compose.infra.yml up -d\""
+$SSH "wsl -d Ubuntu -- bash -c '\
+  docker stop postgres mer-postgres mer-qdrant mer-redis 2>/dev/null; \
+  docker rm postgres mer-postgres mer-qdrant mer-redis 2>/dev/null; \
+  cd /mnt/c/source/mer-v2 && docker compose -f deploy/compose.infra.yml up -d\
+'"
 
 echo "================================================="
 echo "✅ 배포 완료!"
