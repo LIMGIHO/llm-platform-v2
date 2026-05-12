@@ -27,7 +27,7 @@ services:
     container_name: mer-qdrant
     restart: unless-stopped
     volumes:
-      - /mnt/c/Source/mer-v2/data/qdrant:/qdrant/storage
+      - qdrant_data:/qdrant/storage
     ports:
       - "6333:6333"
       - "6334:6334"
@@ -59,3 +59,7 @@ networks:
   mer-net:
     name: mer-net
     driver: bridge
+
+volumes:
+  qdrant_data:
+    name: mer-qdrant-data

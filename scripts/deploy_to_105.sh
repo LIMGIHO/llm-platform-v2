@@ -17,8 +17,8 @@ echo "================================================="
 echo "[1/4] 원격 서버 디렉토리 준비 중..."
 $SSH "powershell -Command \"New-Item -ItemType Directory -Force \
   -Path '$REMOTE_DIR\\deploy','$REMOTE_DIR\\infra\\migrations', \
-  '$REMOTE_DIR\\data\\pg','$REMOTE_DIR\\data\\qdrant', \
-  '$REMOTE_DIR\\data\\redis','$REMOTE_DIR\\data\\bm25' | Out-Null\""
+  '$REMOTE_DIR\\data\\pg','$REMOTE_DIR\\data\\redis', \
+  '$REMOTE_DIR\\data\\bm25' | Out-Null\""
 
 # ── 2. 시스템 Docker config에서 credsStore 제거 ───────────────────────────
 # bash→SSH→PowerShell escaping 문제를 피하기 위해
