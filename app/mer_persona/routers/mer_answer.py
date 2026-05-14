@@ -107,13 +107,15 @@ async def answer(
         logger.info("answer.resolved", original=req.query[:60], resolved=effective_query[:80])
 
     # ── 1.5. Conversational Query Rewriting (CQR) ────────────────────────
-    # "어제는?" 같은 anaphoric 쿼리를 self-contained하게 변환 (대화 맥락 활용)
     recent_turns = await _load_recent_turns(redis, conversation_id)
+    last_posts = await context_resolver.load_last_posts(redis, conversation_id)
     router_llm = _build_task_llm(settings, "router")
-    rewritten_query = await query_rewriter.contextual_rewrite(
-        effective_query, recent_turns, router_llm
+    t_cqr = time.monotonic()
+    rewritten_query, cqr_status = await query_rewriter.contextual_rewrite(
+        effective_query, recent_turns, last_posts or None, router_llm
     )
-    cqr_occurred = rewritten_query != effective_query
+    tc.add_step("cqr", t_cqr, time.monotonic(), {"status": cqr_status})
+    cqr_occurred = cqr_status == "rewritten"
     if cqr_occurred:
         logger.info("answer.cqr", original=effective_query[:60], rewritten=rewritten_query[:80])
         effective_query = rewritten_query
