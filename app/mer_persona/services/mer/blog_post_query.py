@@ -143,9 +143,8 @@ def format_blog_post_list_answer(parsed: BlogPostListQuery, posts: list[BlogPost
     for idx, post in enumerate(posts, start=1):
         dt = post.ingested_at if parsed.basis == "ingested_at" else post.published_at
         dt_text = _format_dt(dt)
-        lines.append(f"{idx}. {post.title}")
+        lines.append(f"{idx}. [{post.title}]({post.url})")
         lines.append(f"   - 날짜: {dt_text}")
-        lines.append(f"   - 링크: {post.url}")
     return "\n".join(lines)
 
 
