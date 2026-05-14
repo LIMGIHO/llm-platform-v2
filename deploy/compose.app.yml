@@ -40,12 +40,11 @@ services:
       - /var/run/docker.sock:/var/run/docker.sock:ro
     extra_hosts:
       - "host.docker.internal:host-gateway"
-      - "postgres:192.168.219.105"
-      - "qdrant:192.168.219.105"
-      - "redis:192.168.219.105"
-      # depends_on:
-      # tei-reranker:
-      #   condition: service_healthy
+      # postgres/qdrant: SSH 터널(Mac 로컬 포트) → 105 서버
+      - "postgres:host-gateway"
+      - "qdrant:host-gateway"
+    depends_on:
+      - redis
     healthcheck:
       test: [ "CMD-SHELL", "curl -sf http://localhost:8000/healthz || exit 1" ]
       interval: 15s
@@ -54,9 +53,15 @@ services:
     networks:
       - mer-net
 
+  redis:
+    image: redis:7-alpine
+    container_name: mer-redis-local
+    restart: unless-stopped
+    networks:
+      - mer-net
+
 volumes:
   hf_cache:
-    # tei_cache:
 
 networks:
   mer-net:
