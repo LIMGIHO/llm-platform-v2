@@ -33,7 +33,10 @@ async def save_last_posts(
     conversation_id: str,
     posts: list[dict],
 ) -> None:
-    """blog_post_list 응답 후 글 목록을 Redis에 저장한다."""
+    """blog_post_list 응답 후 글 목록을 Redis에 저장한다.
+
+    posts 각 항목에 post_id_src가 포함되어야 특정 글 직접 조회가 가능하다.
+    """
     await redis.set(
         _posts_key(conversation_id),
         json.dumps(posts, ensure_ascii=False, default=str),
@@ -107,3 +110,37 @@ async def resolve_query(
     remainder = _strip_ordinal_expr(query)
     rewritten = f"「{title}」 {remainder}".strip() if remainder else f"「{title}」"
     return rewritten, title
+
+
+_TITLE_PAT = re.compile(r"「([^」]+)」")
+
+
+def find_target_post(
+    effective_query: str,
+    resolved_title: str | None,
+    last_posts: list[dict],
+) -> dict | None:
+    """특정 글을 참조하는 쿼리에서 해당 post를 반환한다.
+
+    resolved_title(ordinal resolver 결과) 또는 「」 마커(CQR 결과)로 판단.
+    post_id_src가 없는 항목은 건너뛴다.
+    """
+    if not last_posts:
+        return None
+
+    def _match(title: str) -> dict | None:
+        for p in last_posts:
+            if p.get("title") == title and p.get("post_id_src"):
+                return p
+        return None
+
+    if resolved_title:
+        found = _match(resolved_title)
+        if found:
+            return found
+
+    m = _TITLE_PAT.search(effective_query)
+    if m:
+        return _match(m.group(1))
+
+    return None

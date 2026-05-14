@@ -12,6 +12,13 @@ from app.shared.db.models import MerBlogPost
 
 KST = timezone(timedelta(hours=9))
 _EXPLICIT_MD = re.compile(r"(?:(\d{4})년\s*)?(\d{1,2})월\s*(\d{1,2})일")
+_KOREAN_DAYS_AGO = re.compile(r"(하루|이틀|사흘|나흘|닷새|엿새|이레|여드레|아흐레|열흘)\s*전")
+_NUMERIC_DAYS_AGO = re.compile(r"(\d+)\s*일\s*전")
+_KOREAN_DAYS_MAP = {
+    "하루": 1, "이틀": 2, "사흘": 3, "나흘": 4,
+    "닷새": 5, "엿새": 6, "이레": 7, "여드레": 8,
+    "아흐레": 9, "열흘": 10,
+}
 
 
 @dataclass(frozen=True)
@@ -55,6 +62,20 @@ def parse_blog_post_list_query(query: str, *, now: datetime | None = None) -> Bl
         start, end = _day_range(target)
         return BlogPostListQuery(start=start, end=end, basis=basis, limit=limit, label="그저께")
 
+    m = _KOREAN_DAYS_AGO.search(text)
+    if m:
+        days = _KOREAN_DAYS_MAP[m.group(1)]
+        target = today - timedelta(days=days)
+        start, end = _day_range(target)
+        return BlogPostListQuery(start=start, end=end, basis=basis, limit=limit, label=m.group(0))
+
+    m = _NUMERIC_DAYS_AGO.search(text)
+    if m:
+        days = int(m.group(1))
+        target = today - timedelta(days=days)
+        start, end = _day_range(target)
+        return BlogPostListQuery(start=start, end=end, basis=basis, limit=limit, label=m.group(0))
+
     if "어제" in text:
         target = today - timedelta(days=1)
         start, end = _day_range(target)
@@ -85,6 +106,21 @@ def parse_blog_post_list_query(query: str, *, now: datetime | None = None) -> Bl
         return BlogPostListQuery(start=start, end=current, basis=basis, limit=limit, label="최근 7일")
 
     return BlogPostListQuery(start=None, end=None, basis=basis, limit=limit, label="최근")
+
+
+async def get_raw_text_by_id(
+    session: AsyncSession,
+    post_id_src: str,
+    max_chars: int = 6000,
+) -> tuple[str, str] | None:
+    """post_id_src로 글의 (title, raw_text)를 반환한다. 없으면 None."""
+    stmt = select(MerBlogPost.title, MerBlogPost.raw_text).where(
+        MerBlogPost.post_id_src == post_id_src
+    )
+    row = (await session.execute(stmt)).first()
+    if not row or not row.raw_text:
+        return None
+    return row.title, row.raw_text[:max_chars]
 
 
 async def list_blog_posts(
@@ -122,9 +158,8 @@ def format_blog_post_list_answer(parsed: BlogPostListQuery, posts: list[BlogPost
     for idx, post in enumerate(posts, start=1):
         dt = post.ingested_at if parsed.basis == "ingested_at" else post.published_at
         dt_text = _format_dt(dt)
-        lines.append(f"{idx}. {post.title}")
+        lines.append(f"{idx}. [{post.title}]({post.url})")
         lines.append(f"   - 날짜: {dt_text}")
-        lines.append(f"   - 링크: {post.url}")
     return "\n".join(lines)
 
 

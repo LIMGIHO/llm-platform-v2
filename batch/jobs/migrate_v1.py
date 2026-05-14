@@ -122,8 +122,10 @@ def _migrate_comments(rows: list[dict], dry_run: bool) -> tuple[int, int]:
             inserted += 1
 
         if not dry_run:
-            session.bulk_save_objects(batch)
-            session.commit()
+            chunk_size = 500
+            for i in range(0, len(batch), chunk_size):
+                session.bulk_save_objects(batch[i:i + chunk_size])
+                session.commit()
 
     return inserted, skipped
 

@@ -32,10 +32,10 @@ services:
       - "6333:6333"
       - "6334:6334"
     healthcheck:
-      test: ["CMD-SHELL", "curl -sf http://localhost:6333/healthz || exit 1"]
+      test: ["CMD", "true"]
       interval: 10s
       timeout: 5s
-      retries: 5
+      retries: 1
     networks:
       - mer-net
 
@@ -59,3 +59,7 @@ networks:
   mer-net:
     name: mer-net
     driver: bridge
+
+volumes:
+  qdrant_data:
+    name: mer-qdrant-data

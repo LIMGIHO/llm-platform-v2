@@ -45,29 +45,21 @@ $SCP deploy/compose.batch.yml "${REMOTE_USER}@${REMOTE_IP}:${REMOTE_DIR}/deploy/
 $SCP deploy/env/.env           "${REMOTE_USER}@${REMOTE_IP}:${REMOTE_DIR}/deploy/env/.env"
 
 # ── 4. 105에서 이미지 로드 + 기존 컨테이너 교체 ──────────────────────────
+# NOTE: cmd.exe(Windows SSH 셸)는 single quote를 quote로 인식하지 않아
+#       bash -c '...' 패턴이 깨짐 → 각 단계를 별도 SSH 호출로 분리
 echo "[4/5] 105에서 이미지 로드 + 컨테이너 재시작 중..."
 
-# Base64 인코딩된 PowerShell 스크립트로 특수문자 이슈 회피
-PS_SCRIPT=$(cat << PSEOF
-Set-Location 'C:/source/mer-v2'
-Write-Host "=== 이미지 로드 ==="
-docker load -i mer-batch.tar
-Write-Host "=== 기존 컨테이너 중지 ==="
-docker rm -f mer-batch 2>\$null
-Write-Host "=== 배치 컨테이너 시작 ==="
-\$env:GIT_SHA = '${IMAGE_TAG}'
-docker compose -f deploy/compose.batch.yml up -d
-Write-Host "=== 컨테이너 상태 ==="
-docker ps --filter name=mer-batch
-PSEOF
-)
+echo "  [4a] 이미지 로드..."
+$SSH "wsl -d Ubuntu -- docker load -i /mnt/c/source/mer-v2/mer-batch.tar"
 
-ENCODED=$(python3 -c "
-import base64, sys
-print(base64.b64encode(sys.stdin.read().encode('utf-16-le')).decode())
-" <<< "$PS_SCRIPT")
+echo "  [4b] 기존 컨테이너 제거..."
+$SSH "wsl -d Ubuntu -- docker rm -f mer-batch" 2>/dev/null || true
 
-$SSH "powershell -EncodedCommand $ENCODED"
+echo "  [4c] 컨테이너 시작..."
+$SSH "wsl -d Ubuntu -- env GIT_SHA=${IMAGE_TAG} docker compose -f /mnt/c/source/mer-v2/deploy/compose.batch.yml up -d"
+
+echo "  [4d] 상태 확인..."
+$SSH "wsl -d Ubuntu -- docker ps"
 
 # ── 5. 로컬 정리 ─────────────────────────────────────────────────────────
 echo "[5/5] 임시 파일 정리..."

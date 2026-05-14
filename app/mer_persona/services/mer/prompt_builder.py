@@ -54,6 +54,34 @@ _NO_EVIDENCE_TEMPLATE = """\
 """
 
 
+_ARTICLE_SUMMARY_TEMPLATE = """\
+{style_section}=== 블로그 글 전문 ===
+{raw_text}
+
+=== 질문 ===
+{query}
+
+위 글의 핵심 내용을 빠짐없이 요약해.
+중요한 포인트는 모두 포함하고, 중복되거나 부가적인 설명만 생략해.
+메르 댓글 말투로, 구어체 문장으로만. 마크다운(###, **, 번호 목록 등) 절대 쓰지 마.
+"""
+
+
+def build_article_summary(
+    query: str,
+    raw_text: str,
+    style_pack: StylePack | None = None,
+) -> tuple[str, str]:
+    """특정 글 전문을 바탕으로 한 요약 프롬프트 — Qdrant bypass 경로에서 사용."""
+    style_section = _format_style(style_pack)
+    user_prompt = _ARTICLE_SUMMARY_TEMPLATE.format(
+        style_section=style_section,
+        raw_text=raw_text,
+        query=query,
+    )
+    return _SYSTEM, user_prompt
+
+
 def build(
     query: str,
     evidence: EvidencePack | None,

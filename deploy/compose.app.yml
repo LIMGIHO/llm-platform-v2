@@ -35,14 +35,16 @@ services:
     ports:
       - "${APP_PORT:-8000}:8000"
     volumes:
-      - bm25_data:/data/bm25:ro
+      - /mnt/c/Source/mer-v2/data/bm25:/data/bm25:ro
       - hf_cache:/root/.cache/huggingface
       - /var/run/docker.sock:/var/run/docker.sock:ro
     extra_hosts:
       - "host.docker.internal:host-gateway"
-      # depends_on:
-      # tei-reranker:
-      #   condition: service_healthy
+      # postgres/qdrant: SSH 터널(Mac 로컬 포트) → 105 서버
+      - "postgres:host-gateway"
+      - "qdrant:host-gateway"
+    depends_on:
+      - redis
     healthcheck:
       test: [ "CMD-SHELL", "curl -sf http://localhost:8000/healthz || exit 1" ]
       interval: 15s
@@ -51,10 +53,15 @@ services:
     networks:
       - mer-net
 
+  redis:
+    image: redis:7-alpine
+    container_name: mer-redis-local
+    restart: unless-stopped
+    networks:
+      - mer-net
+
 volumes:
-  bm25_data:
   hf_cache:
-    # tei_cache:
 
 networks:
   mer-net:
