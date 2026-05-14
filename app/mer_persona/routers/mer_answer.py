@@ -182,7 +182,12 @@ async def answer(
                     redis,
                     conversation_id,
                     [
-                        {"title": p.title, "url": p.url, "published_at": str(p.published_at)}
+                        {
+                            "title": p.title,
+                            "url": p.url,
+                            "published_at": str(p.published_at),
+                            "post_id_src": p.post_id_src,
+                        }
                         for p in posts
                     ],
                 )
@@ -230,7 +235,12 @@ async def answer(
                     redis,
                     conversation_id,
                     [
-                        {"title": p.title, "url": p.url, "published_at": str(p.published_at)}
+                        {
+                            "title": p.title,
+                            "url": p.url,
+                            "published_at": str(p.published_at),
+                            "post_id_src": p.post_id_src,
+                        }
                         for p in posts
                     ],
                 )
@@ -301,7 +311,54 @@ async def answer(
             routing_card=routing_card,
         )
 
-    # ── 6. Retrieve ───────────────────────────────────────────────────────
+    # ── 6. 특정 글 직접 조회 (Qdrant bypass) ────────────────────────────
+    # resolved_title 또는 「」 마커로 특정 글이 지정된 경우 Postgres raw_text 직접 사용
+    target_post = context_resolver.find_target_post(effective_query, resolved_title, last_posts)
+    if target_post:
+        t_s = time.monotonic()
+        post_id_src = target_post["post_id_src"]
+        result = await blog_post_query.get_raw_text_by_id(session, post_id_src)
+        if result:
+            raw_title, raw_text = result
+            logger.info("answer.article_bypass", post_id_src=post_id_src, title=raw_title[:60])
+            tc.add_step("article_bypass", t_s, time.monotonic(), {"post_id_src": post_id_src})
+            style_pack = await style_pack_builder.build(effective_query, top_k=settings.STYLE_TOP_K)
+            system_p, user_p = prompt_builder.build_article_summary(
+                effective_query, raw_text, style_pack=style_pack
+            )
+            try:
+                LLM_CALLS.labels(task="chat").inc()
+                answer_text = await response_synthesizer.synthesize(system_p, user_p, llm)
+            except Exception as exc:
+                LLM_ERRORS.labels(task="chat").inc()
+                raise HTTPException(status_code=502, detail=f"LLM 호출 실패: {exc}") from exc
+            latency_ms = int((time.monotonic() - t0) * 1000)
+            ANSWER_REQUESTS.labels(intent=str(route), status="ok").inc()
+            ANSWER_LATENCY.observe((time.monotonic() - t0))
+            asyncio.create_task(tracing.persist(tc, str(route), settings.LMSTUDIO_CHAT_MODEL, latency_ms, "ok"))
+            return MerAnswerResponse(
+                trace_id=trace_id,
+                conversation_id=conversation_id,
+                intent=str(route),
+                answer=answer_text,
+                citations=[
+                    Citation(
+                        idx=1,
+                        title=raw_title,
+                        url=target_post.get("url", ""),
+                        snippet=raw_text[:200],
+                        score=1.0,
+                        source_type="blog",
+                    )
+                ],
+                confidence=1.0,
+                verifier=VerifierResult(entailed=True, missing_citations=[]),
+                latency_ms=latency_ms,
+                model=settings.LMSTUDIO_CHAT_MODEL,
+                routing_card=routing_card,
+            )
+
+    # ── 7. Retrieve (일반 RAG) ────────────────────────────────────────────
     t_s = time.monotonic()
     try:
         nodes = await _retrieve_nodes(effective_query, req.top_k, settings, llm=llm)

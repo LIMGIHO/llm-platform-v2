@@ -108,6 +108,21 @@ def parse_blog_post_list_query(query: str, *, now: datetime | None = None) -> Bl
     return BlogPostListQuery(start=None, end=None, basis=basis, limit=limit, label="최근")
 
 
+async def get_raw_text_by_id(
+    session: AsyncSession,
+    post_id_src: str,
+    max_chars: int = 6000,
+) -> tuple[str, str] | None:
+    """post_id_src로 글의 (title, raw_text)를 반환한다. 없으면 None."""
+    stmt = select(MerBlogPost.title, MerBlogPost.raw_text).where(
+        MerBlogPost.post_id_src == post_id_src
+    )
+    row = (await session.execute(stmt)).first()
+    if not row or not row.raw_text:
+        return None
+    return row.title, row.raw_text[:max_chars]
+
+
 async def list_blog_posts(
     session: AsyncSession,
     parsed: BlogPostListQuery,
