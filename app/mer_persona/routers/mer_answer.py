@@ -343,12 +343,11 @@ async def answer(
                 answer=answer_text,
                 citations=[
                     Citation(
-                        idx=1,
+                        id="1",
                         title=raw_title,
                         url=target_post.get("url", ""),
                         snippet=raw_text[:200],
                         score=1.0,
-                        source_type="blog",
                     )
                 ],
                 confidence=1.0,
