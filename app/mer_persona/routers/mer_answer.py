@@ -222,7 +222,8 @@ async def answer(
     if route == intent_router.IntentRoute.BLOG_SEARCH:
         t_s = time.monotonic()
         try:
-            keyword = blog_post_query.extract_search_keyword(effective_query)
+            # LLM이 키워드를 추출했으면 우선 사용, 없으면 regex fallback
+            keyword = routing.keyword or blog_post_query.extract_search_keyword(effective_query)
             posts = await blog_post_query.search_blog_posts(session, keyword)
             answer_text = blog_post_query.format_blog_search_answer(keyword, posts)
         except Exception as exc:

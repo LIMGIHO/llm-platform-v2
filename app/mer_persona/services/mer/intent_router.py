@@ -33,6 +33,7 @@ class RoutingInfo:
     method: Literal["semantic", "heuristic", "llm"]
     reason: str
     score: float | None = field(default=None)
+    keyword: str | None = field(default=None)  # blog_search 시 LLM이 추출한 검색 키워드
 
 # 휴리스틱 패턴 제거 — Semantic Router → LLM 2단계로 단순화
 # 정규식 기반 휴리스틱은 자연어 예외 처리 한계로 오분류가 잦아 LLM에 위임
@@ -199,16 +200,18 @@ _SYSTEM_PROMPT = """\
 ## Few-shot 예시
 질문: "오늘 올라온 HMM 글 요약해줘" → {"intent": "blog_evidence", "reason": "블로그 글 내용 요약 요청"}
 질문: "오늘 올라온 블로그 글 있어?" → {"intent": "blog_post_list", "reason": "날짜 기준 글 목록 조회"}
-질문: "조선업 관련 글 찾아줄래" → {"intent": "blog_search", "reason": "키워드 기반 글 검색"}
-질문: "반도체에 대한 포스트 있어?" → {"intent": "blog_search", "reason": "키워드 기반 글 검색"}
-질문: "HMM 관련 글 보여줘" → {"intent": "blog_search", "reason": "키워드 기반 글 검색"}
+질문: "조선업 관련 글 찾아줄래" → {"intent": "blog_search", "keyword": "조선업", "reason": "키워드 기반 글 검색"}
+질문: "반도체에 대한 포스트 있어?" → {"intent": "blog_search", "keyword": "반도체", "reason": "키워드 기반 글 검색"}
+질문: "게시글 중 HMM에 관련된 게시글좀 찾아줄래" → {"intent": "blog_search", "keyword": "HMM", "reason": "키워드 기반 글 검색"}
+질문: "미중 무역전쟁 관련 포스트 보여줘" → {"intent": "blog_search", "keyword": "미중 무역전쟁", "reason": "키워드 기반 글 검색"}
 질문: "오늘 삼성전자 주가 얼마야?" → {"intent": "needs_fresh", "reason": "실시간 주가 요청"}
 질문: "한국 화물선 공격받은 이유 알려줘" → {"intent": "blog_evidence", "reason": "블로그 기반 설명"}
 질문: "내 포트폴리오 수익률 보여줘" → {"intent": "internal_db", "reason": "개인 데이터 요청"}
 질문: "현재 달러 환율" → {"intent": "needs_fresh", "reason": "실시간 환율 조회"}
 질문: "금리 인상이 부동산에 미치는 영향?" → {"intent": "blog_evidence", "reason": "금융 개념 설명"}
 
-JSON 한 줄만 반환해라. 예: {"intent": "blog_evidence", "reason": "블로그 내용 요청"}
+blog_search일 때는 반드시 keyword 필드를 포함해라. 다른 intent는 keyword 불필요.
+JSON 한 줄만 반환해라. 예: {"intent": "blog_search", "keyword": "조선업", "reason": "키워드 기반 글 검색"}
 """
 
 
@@ -276,21 +279,26 @@ async def classify_with_info(
         raw = response.message.content or ""
         intent = _parse_llm_response(raw)
 
-        # LLM reason 추출
+        # LLM reason + keyword 추출
+        llm_keyword: str | None = None
         try:
             m = re.search(r"\{.*?\}", raw, re.DOTALL)
             if m:
                 data = json.loads(m.group())
                 llm_reason = f"LLM: {data.get('reason', '')}"
+                if intent == IntentRoute.BLOG_SEARCH:
+                    kw = data.get("keyword", "")
+                    if kw and kw.strip():
+                        llm_keyword = kw.strip()
         except Exception:
             pass
 
-        logger.debug("intent.llm", intent=intent, query=query[:60])
+        logger.debug("intent.llm", intent=intent, keyword=llm_keyword, query=query[:60])
     except Exception as exc:
         logger.warning("intent.classify_error", error=str(exc))
         llm_reason = f"LLM 오류 → fallback ({exc})"
 
-    return RoutingInfo(intent=intent, method="llm", reason=llm_reason)
+    return RoutingInfo(intent=intent, method="llm", reason=llm_reason, keyword=llm_keyword)
 
 
 async def classify(
