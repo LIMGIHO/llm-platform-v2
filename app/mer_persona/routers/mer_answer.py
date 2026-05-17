@@ -64,13 +64,19 @@ async def _load_recent_turns(
         return []
 
 
-async def _retrieve_nodes(query: str, top_k: int, settings: Settings, llm: OpenAILike | None = None):
+async def _retrieve_nodes(
+    query: str,
+    top_k: int,
+    settings: Settings,
+    llm: OpenAILike | None = None,
+    blog_only: bool = False,
+):
     queries = await query_rewriter.rewrite(query, llm=llm)
     search_query = queries[0]
 
-    # mer_blog(블로그 포스트) + mer_comments(댓글) 동시 검색
     blog_ret = vector_index.get_vector_retriever(top_k=top_k * 2)
-    comments_ret = vector_index.get_comments_vector_retriever(top_k=top_k * 2)
+    # blog_only=True면 댓글 검색 제외 — 블로그 글 내용 질문에서 댓글이 노이즈로 작용하는 것 방지
+    comments_ret = None if blog_only else vector_index.get_comments_vector_retriever(top_k=top_k * 2)
     bm25_ret = bm25_index.get_bm25_retriever(top_k=top_k * 2)
     retriever = hybrid_retriever.get_hybrid_retriever(
         blog_ret, bm25_ret, comments_retriever=comments_ret, top_k=top_k * 2
@@ -313,7 +319,10 @@ async def answer(
 
     # ── 6. 특정 글 직접 조회 (Qdrant bypass) ────────────────────────────
     # resolved_title 또는 「」 마커로 특정 글이 지정된 경우 Postgres raw_text 직접 사용
+    # 목록이 1건뿐이면 명시적 지정 없이도 그 글로 간주 (CQR이 마커를 붙이지 못한 경우 대비)
     target_post = context_resolver.find_target_post(effective_query, resolved_title, last_posts)
+    if target_post is None and len(last_posts) == 1 and last_posts[0].get("post_id_src"):
+        target_post = last_posts[0]
     if target_post:
         t_s = time.monotonic()
         post_id_src = target_post["post_id_src"]
@@ -358,9 +367,11 @@ async def answer(
             )
 
     # ── 7. Retrieve (일반 RAG) ────────────────────────────────────────────
+    # blog_evidence는 게시글 내용 질문 — 댓글은 노이즈이므로 블로그 글만 검색
+    _blog_only = (route == intent_router.IntentRoute.BLOG_EVIDENCE)
     t_s = time.monotonic()
     try:
-        nodes = await _retrieve_nodes(effective_query, req.top_k, settings, llm=llm)
+        nodes = await _retrieve_nodes(effective_query, req.top_k, settings, llm=llm, blog_only=_blog_only)
     except Exception as exc:
         logger.error("answer.retrieve_error", error=str(exc))
         ANSWER_REQUESTS.labels(intent=str(route), status="error").inc()
