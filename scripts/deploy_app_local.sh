@@ -25,10 +25,10 @@ docker build --pull \
   -t "${IMAGE_NAME}:${IMAGE_TAG}" \
   .
 
-# 3. 기존 컨테이너 중지 및 새 컨테이너 시작
+# 3. 기존 컨테이너 중지 및 새 컨테이너 시작 (--force-recreate: 새 이미지 반드시 반영)
 echo "[2/2] 컨테이너 재시작 중..."
 export GIT_SHA="${IMAGE_TAG}"
-docker compose -f deploy/compose.app.yml up -d
+docker compose -f deploy/compose.app.yml up -d --force-recreate app
 
 echo "================================================="
 echo "✅ 로컬 배포 완료!"
