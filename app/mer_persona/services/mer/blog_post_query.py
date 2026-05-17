@@ -200,18 +200,23 @@ _JOSA = r"(?:을|를|이|가|은|는|에|의|과|와|로|으로|도|만)?"
 
 # 노이즈 단어 + 뒤에 붙는 조사까지 한 번에 제거
 _SEARCH_NOISE = re.compile(
-    rf"(?:관련|에\s*관한|에\s*대한?|에\s*관련된|글|포스트|게시글|블로그){_JOSA}\s*"
+    # "게시글 중", "글 중" 처럼 '중(中)' 포함 구문을 통째로 제거
+    # 관련된? → "관련" / "관련된" 둘 다 제거
+    rf"(?:관련된?|에\s*관한|에\s*대한?|에\s*관련된?|글|포스트|게시글|블로그){_JOSA}(?:\s*중)?\s*"
     r"|찾아\s*줄래\??|찾아\s*줘\??|보여\s*줘\??|보여\s*주세요\??"
     r"|검색\s*해\s*줘\??|알려\s*줘\??|알려\s*주세요\??"
     r"|있어\??|없어\??|뭐\s*있어\??|뭐가\s*있어\??|있나요\??|있을까\??",
     re.IGNORECASE,
 )
 _TRAILING_JOSA = re.compile(r"\s*(?:을|를|이|가|은|는|에|의|과|와|로|으로|도|만)\s*$")
+# 한국어에서 \b 미작동 → 공백/문자열 경계 기반으로 '좀' 별도 제거
+_STANDALONE_JOM = re.compile(r"(?<!\S)좀(?=\s|$)|(?<=\s)좀(?!\S)")
 
 
 def extract_search_keyword(query: str) -> str:
     """쿼리에서 검색 키워드만 추출한다. 추출 실패 시 원본 반환."""
     cleaned = _SEARCH_NOISE.sub(" ", query)
+    cleaned = _STANDALONE_JOM.sub("", cleaned)
     cleaned = _TRAILING_JOSA.sub("", cleaned)
     cleaned = re.sub(r"\s+", " ", cleaned).strip().strip("?").strip()
     return cleaned if len(cleaned) > 1 else query.strip()
