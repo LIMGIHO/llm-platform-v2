@@ -7,7 +7,7 @@ def test_settings_defaults():
         LMSTUDIO_BASE_URL="http://localhost:1234/v1",
         PG_DSN="postgresql+psycopg://mer:mer@localhost:5432/mer",
     )
-    assert s.LMSTUDIO_EMBED_MODEL == "bge-m3"
+    assert s.LMSTUDIO_EMBED_MODEL == "text-embedding-bge-m3"
     assert s.HYBRID_ALPHA == 0.5
 
 
