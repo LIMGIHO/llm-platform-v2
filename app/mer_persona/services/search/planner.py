@@ -29,6 +29,7 @@ _SYSTEM_PROMPT = """\
 _MARKET_PAT = re.compile(r"(주가|환율|시세|현재가|코스피|코스닥|나스닥|비트코인|달러|환전)")
 _FILE_PAT = re.compile(r"(파일|코드|함수|클래스|에러|로그|프로젝트|어디|경로|router|service|config)")
 _WEB_PAT = re.compile(r"(뉴스|최근|최신|웹|검색|기사|자료|발표)")
+_CODE_TOKEN_PAT = re.compile(r"[A-Za-z_][A-Za-z0-9_]{2,}")
 
 
 def _extract_json(text: str) -> dict:
@@ -60,7 +61,7 @@ def _rule_fallback(
             steps=[
                 ToolCallRequest(
                     tool="local_file_search",
-                    query=query,
+                    query=_extract_file_query(query),
                     args={"path_scope": "."},
                 )
             ],
@@ -83,6 +84,14 @@ def _rule_fallback(
         raw_output=raw,
         validation_errors=errors or [],
     )
+
+
+def _extract_file_query(query: str) -> str:
+    tokens = _CODE_TOKEN_PAT.findall(query)
+    for token in tokens:
+        if "_" in token or any(ch.isupper() for ch in token):
+            return token
+    return tokens[0] if tokens else query
 
 
 async def plan_search(query: str, llm=None, max_steps: int = 3) -> SearchPlanResponse:

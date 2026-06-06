@@ -10,6 +10,8 @@ from app.mer_persona.core.config import Settings, get_settings
 from app.mer_persona.schemas.search import (
     FileSearchRequest,
     MarketSearchRequest,
+    SearchAnswerRequest,
+    SearchAnswerResponse,
     SearchPlanRequest,
     SearchPlanResponse,
     ToolCallRecord,
@@ -17,6 +19,7 @@ from app.mer_persona.schemas.search import (
     ToolSearchResponse,
     WebSearchRequest,
 )
+from app.mer_persona.services.search.agent import answer_search
 from app.mer_persona.services.search.local_files import LocalFileSearchTool
 from app.mer_persona.services.search.market import DisabledMarketDataTool
 from app.mer_persona.services.search.planner import plan_search
@@ -33,6 +36,14 @@ def _latency_ms(start: float) -> int:
 @router.post("/plan", response_model=SearchPlanResponse)
 async def plan(req: SearchPlanRequest) -> SearchPlanResponse:
     return await plan_search(req.query, llm=None, max_steps=req.max_steps)
+
+
+@router.post("/answer", response_model=SearchAnswerResponse)
+async def answer(
+    req: SearchAnswerRequest,
+    settings: Annotated[Settings, Depends(get_settings)],
+) -> SearchAnswerResponse:
+    return await answer_search(req, llm=None, file_root=settings.SEARCH_FILE_ROOT)
 
 
 @router.post("/tools/files", response_model=ToolSearchResponse)

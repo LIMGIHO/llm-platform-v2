@@ -52,3 +52,17 @@ async def test_plan_endpoint_uses_rule_fallback_without_llm_execution():
     assert resp.status_code == 200
     data = resp.json()
     assert data["steps"][0]["tool"] == "local_file_search"
+
+
+@pytest.mark.asyncio
+async def test_answer_endpoint_returns_file_citation():
+    async with _client() as client:
+        resp = await client.post(
+            "/v1/search/answer",
+            json={"query": "이 프로젝트에서 IntentRoute 어디 있어?", "max_steps": 3},
+        )
+    assert resp.status_code == 200
+    data = resp.json()
+    assert "local_file_search" in data["used_tools"]
+    assert data["trace_id"]
+    assert data["citations"]
