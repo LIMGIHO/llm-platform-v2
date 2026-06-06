@@ -23,8 +23,8 @@ async def lifespan(app: FastAPI):
     LISettings.embed_model = build_embed_model(settings)
 
     # Semantic Router warm-up — 첫 요청 전에 utterance 임베딩을 미리 완료
-    from app.mer_persona.services.mer.intent_router import _build_route_matrix
     import app.mer_persona.services.mer.intent_router as _ir
+    from app.mer_persona.services.mer.intent_router import _build_route_matrix
     try:
         _ir._route_matrix = await _build_route_matrix()
         logger.info("startup.semantic_router", status="ready")
@@ -50,13 +50,12 @@ async def lifespan(app: FastAPI):
 app = FastAPI(title="llm-platform-v2 (mer)", version="0.1.0", lifespan=lifespan)
 
 # ── routers ───────────────────────────────────────────────────────────────
-from app.mer_persona.routers import chat_ui, mer_answer, mer_chat  # noqa: E402
+from app.mer_persona.routers import chat_ui, debug, mer_answer, mer_chat, ops, search  # noqa: E402
 
 app.include_router(chat_ui.router)
 app.include_router(mer_chat.router, prefix="/v1/mer")
 app.include_router(mer_answer.router, prefix="/v1/mer")
-
-from app.mer_persona.routers import debug, ops  # noqa: E402
+app.include_router(search.router, prefix="/v1/search")
 app.include_router(debug.router, prefix="/v1/debug")
 app.include_router(ops.router, prefix="/ops")
 
