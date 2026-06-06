@@ -9,12 +9,14 @@ def build_llm(settings: Settings, task: str = "default") -> OpenAILike:
     task_model_map = {
         "router": settings.LMSTUDIO_MODEL_ROUTER,
         "verifier": settings.LMSTUDIO_MODEL_VERIFIER,
+        "planner": settings.LMSTUDIO_MODEL_PLANNER,
     }
     # verifier는 짧은 입력 + 짧은 출력이므로 별도 단축 timeout 적용
     # Channel Error 시 무한 hang 방지
     task_timeout_map = {
         "verifier": 60,
         "router": 30,
+        "planner": 15,
     }
     model = task_model_map.get(task, settings.LMSTUDIO_CHAT_MODEL)
     timeout = task_timeout_map.get(task, settings.LLM_TIMEOUT_SEC)

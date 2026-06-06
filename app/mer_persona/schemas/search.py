@@ -11,6 +11,7 @@ class ToolName(StrEnum):
     WEB = "web_search"
     MARKET = "market_data"
     FILES = "local_file_search"
+    RAG = "rag_search"
 
 
 class SearchResultType(StrEnum):

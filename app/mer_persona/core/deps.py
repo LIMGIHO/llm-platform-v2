@@ -20,6 +20,11 @@ def get_llm(task: str = "default", s: Settings = Depends(get_settings)) -> OpenA
     return _llm_cache[task]
 
 
+def get_planner_llm(s: Settings = Depends(get_settings)) -> OpenAILike:
+    """Planner 전용 LLM (qwen2.5-1.5b-instruct, 캐시됨)."""
+    return get_llm("planner", s)
+
+
 # ── Redis ─────────────────────────────────────────────────────────────────
 async def get_redis() -> aioredis.Redis:
     return await _get_redis()

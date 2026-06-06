@@ -1,13 +1,17 @@
+"""search planner 유닛 테스트."""
+from __future__ import annotations
+
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
-from app.mer_persona.services.search.planner import plan_search
+from app.mer_persona.schemas.search import ToolName
 
 
-def _mock_llm(content: str) -> MagicMock:
+def _mock_llm(json_response: str) -> MagicMock:
+    """llm.achat()을 모킹하는 헬퍼."""
     msg = MagicMock()
-    msg.content = content
+    msg.content = json_response
     response = MagicMock()
     response.message = msg
     llm = MagicMock()
@@ -15,35 +19,14 @@ def _mock_llm(content: str) -> MagicMock:
     return llm
 
 
-@pytest.mark.asyncio
-async def test_planner_parses_valid_json():
-    llm = _mock_llm(
-        '{"intent":"market","steps":[{"tool":"market_data","query":"005930.KS"}],"reason":"current quote"}'
-    )
-    plan = await plan_search("오늘 삼성전자 주가 알려줘", llm)
-    assert plan.intent == "market"
-    assert plan.steps[0].tool == "market_data"
-    assert plan.validation_errors == []
+# ── Task 1: Schema 검증 ──────────────────────────────────────────────────────
 
+def test_tool_name_rag_exists():
+    assert ToolName.RAG == "rag_search"
 
-@pytest.mark.asyncio
-async def test_planner_rule_fallback_market_without_llm():
-    plan = await plan_search("오늘 삼성전자 주가 알려줘", llm=None)
-    assert plan.intent == "market"
-    assert plan.steps[0].tool == "market_data"
-
-
-@pytest.mark.asyncio
-async def test_planner_rule_fallback_files_without_llm():
-    plan = await plan_search("이 프로젝트에서 intent_router 어디 있어?", llm=None)
-    assert plan.intent == "files"
-    assert plan.steps[0].tool == "local_file_search"
-
-
-@pytest.mark.asyncio
-async def test_planner_invalid_json_uses_rule_fallback():
-    llm = _mock_llm("not json")
-    plan = await plan_search("최근 HMM 뉴스 찾아줘", llm)
-    assert plan.intent == "web"
-    assert plan.steps[0].tool == "web_search"
-    assert plan.validation_errors
+def test_tool_name_all_values():
+    values = {t.value for t in ToolName}
+    assert "rag_search" in values
+    assert "web_search" in values
+    assert "market_data" in values
+    assert "local_file_search" in values

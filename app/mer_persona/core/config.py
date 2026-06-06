@@ -9,6 +9,7 @@ class Settings(BaseSettings):
     LMSTUDIO_CHAT_MODEL: str = "google/gemma-4-e4b"
     LMSTUDIO_MODEL_ROUTER: str = "qwen3.5-4b-claude-4.6-opus-reasoning-distilled"
     LMSTUDIO_MODEL_VERIFIER: str = "qwen/qwen3.5-9b"
+    LMSTUDIO_MODEL_PLANNER: str = "qwen2.5-1.5b-instruct"
     LMSTUDIO_EMBED_MODEL: str = "text-embedding-bge-m3"
     LMSTUDIO_CTX: int = 8192
     LLM_TIMEOUT_SEC: int = 180
