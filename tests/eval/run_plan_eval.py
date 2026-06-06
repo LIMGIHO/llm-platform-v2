@@ -33,7 +33,7 @@ def load_cases(path: Path) -> list[dict]:
 def evaluate_case(case: dict, actual: dict) -> dict:
     """한 케이스의 intent/tool 정확도를 평가한다."""
     intent_ok = actual.get("intent") == case["expected_intent"]
-    actual_tools = sorted(s["tool"] for s in actual.get("steps", []))
+    actual_tools = sorted(s["tool"] for s in (actual.get("steps") or []))
     expected_tools = sorted(case["expected_tools"])
     tools_ok = actual_tools == expected_tools
     return {
