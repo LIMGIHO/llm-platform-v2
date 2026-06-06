@@ -40,3 +40,15 @@ async def test_market_tool_endpoint_reports_disabled_provider():
         resp = await client.post("/v1/search/tools/market", json={"symbol": "005930.KS"})
     assert resp.status_code == 502
     assert "SEARCH_MARKET_PROVIDER" in resp.json()["detail"]
+
+
+@pytest.mark.asyncio
+async def test_plan_endpoint_uses_rule_fallback_without_llm_execution():
+    async with _client() as client:
+        resp = await client.post(
+            "/v1/search/plan",
+            json={"query": "이 프로젝트에서 intent_router 어디 있어?"},
+        )
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["steps"][0]["tool"] == "local_file_search"

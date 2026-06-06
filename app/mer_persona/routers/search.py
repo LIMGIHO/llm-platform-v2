@@ -10,6 +10,8 @@ from app.mer_persona.core.config import Settings, get_settings
 from app.mer_persona.schemas.search import (
     FileSearchRequest,
     MarketSearchRequest,
+    SearchPlanRequest,
+    SearchPlanResponse,
     ToolCallRecord,
     ToolName,
     ToolSearchResponse,
@@ -17,6 +19,7 @@ from app.mer_persona.schemas.search import (
 )
 from app.mer_persona.services.search.local_files import LocalFileSearchTool
 from app.mer_persona.services.search.market import DisabledMarketDataTool
+from app.mer_persona.services.search.planner import plan_search
 from app.mer_persona.services.search.tools import ToolExecutionError
 from app.mer_persona.services.search.web import DisabledWebSearchTool
 
@@ -25,6 +28,11 @@ router = APIRouter(tags=["search"])
 
 def _latency_ms(start: float) -> int:
     return int((time.monotonic() - start) * 1000)
+
+
+@router.post("/plan", response_model=SearchPlanResponse)
+async def plan(req: SearchPlanRequest) -> SearchPlanResponse:
+    return await plan_search(req.query, llm=None, max_steps=req.max_steps)
 
 
 @router.post("/tools/files", response_model=ToolSearchResponse)
