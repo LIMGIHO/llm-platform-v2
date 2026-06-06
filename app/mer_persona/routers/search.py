@@ -19,6 +19,9 @@ from app.mer_persona.schemas.search import (
     ToolSearchResponse,
     WebSearchRequest,
 )
+from llama_index.llms.openai_like import OpenAILike
+
+from app.mer_persona.core.deps import get_planner_llm
 from app.mer_persona.services.search.agent import answer_search
 from app.mer_persona.services.search.local_files import LocalFileSearchTool
 from app.mer_persona.services.search.market import DisabledMarketDataTool
@@ -34,8 +37,12 @@ def _latency_ms(start: float) -> int:
 
 
 @router.post("/plan", response_model=SearchPlanResponse)
-async def plan(req: SearchPlanRequest) -> SearchPlanResponse:
-    return await plan_search(req.query, llm=None, max_steps=req.max_steps)
+async def plan(
+    req: SearchPlanRequest,
+    llm: OpenAILike = Depends(get_planner_llm),
+) -> SearchPlanResponse:
+    """도구를 실행하지 않고 플래너 결과만 반환한다 (디버그·검증용)."""
+    return await plan_search(req.query, llm, max_steps=req.max_steps)
 
 
 @router.post("/answer", response_model=SearchAnswerResponse)

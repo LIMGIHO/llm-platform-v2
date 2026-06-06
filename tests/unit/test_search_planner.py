@@ -1,7 +1,7 @@
 """search planner 유닛 테스트."""
 from __future__ import annotations
 
-from unittest.mock import AsyncMock, MagicMock
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
@@ -118,3 +118,55 @@ async def test_plan_llm_error_returns_fallback():
     assert isinstance(result, SearchPlanResponse)
     assert result.intent == "blog_rag"
     assert result.validation_errors != []
+
+
+from fastapi.testclient import TestClient
+
+
+# ── Task 3: 엔드포인트 ────────────────────────────────────────────────────────
+
+def _make_plan_response(intent: str, tool: str | None = None) -> SearchPlanResponse:
+    steps = []
+    if tool:
+        steps = [ToolCallRequest(tool=ToolName(tool), query="테스트 쿼리")]
+    return SearchPlanResponse(intent=intent, steps=steps, reason="테스트", raw_output="")
+
+
+@pytest.fixture
+def client():
+    from app.mer_persona.main import app
+    return TestClient(app)
+
+
+def test_search_plan_endpoint_returns_200(client):
+    """POST /v1/search/plan 은 200과 SearchPlanResponse를 반환해야 한다."""
+    mock_result = _make_plan_response("blog_rag", "rag_search")
+    with patch(
+        "app.mer_persona.routers.search.plan_search",
+        new=AsyncMock(return_value=mock_result),
+    ):
+        resp = client.post("/v1/search/plan", json={"query": "조선업 설명해줘"})
+    assert resp.status_code == 200
+    body = resp.json()
+    assert body["intent"] == "blog_rag"
+    assert body["steps"][0]["tool"] == "rag_search"
+
+
+def test_search_plan_endpoint_query_too_short(client):
+    """query가 비어있으면 422를 반환해야 한다."""
+    resp = client.post("/v1/search/plan", json={"query": ""})
+    assert resp.status_code == 422
+
+
+def test_search_plan_endpoint_default_max_steps(client):
+    """max_steps 미입력 시 기본값 3이 적용된다."""
+    mock_result = _make_plan_response("smalltalk")
+    with patch(
+        "app.mer_persona.routers.search.plan_search",
+        new=AsyncMock(return_value=mock_result),
+    ) as mock_plan:
+        client.post("/v1/search/plan", json={"query": "안녕"})
+    mock_plan.assert_awaited_once()
+    call_args = mock_plan.call_args
+    # max_steps is passed as keyword arg
+    assert call_args.kwargs.get("max_steps", 3) == 3
