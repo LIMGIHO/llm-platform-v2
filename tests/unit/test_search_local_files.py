@@ -52,6 +52,25 @@ async def test_local_file_search_rejects_symlink_scope_escape(tmp_path: Path):
 
 
 @pytest.mark.asyncio
+async def test_local_file_search_wraps_missing_rg(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
+    target = tmp_path / "notes.txt"
+    target.write_text("needle\n", encoding="utf-8")
+
+    async def fake_create_subprocess_exec(*args, **kwargs):
+        raise FileNotFoundError("rg")
+
+    monkeypatch.setattr(
+        "app.mer_persona.services.search.local_files.asyncio.create_subprocess_exec",
+        fake_create_subprocess_exec,
+    )
+
+    tool = LocalFileSearchTool(root=tmp_path)
+    with pytest.raises(ToolExecutionError) as exc:
+        await tool.search(FileSearchRequest(query="needle"))
+    assert "rg is not available" in str(exc.value)
+
+
+@pytest.mark.asyncio
 async def test_local_file_search_respects_top_k(tmp_path: Path):
     root = tmp_path
     target = root / "notes.txt"

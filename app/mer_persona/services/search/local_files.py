@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import asyncio
 import json
+from contextlib import suppress
 from pathlib import Path
 
 from app.mer_persona.schemas.search import FileSearchRequest, SearchResult, ToolName
@@ -36,40 +37,57 @@ class LocalFileSearchTool:
             cmd.extend(["--glob", glob])
         cmd.extend([request.query, str(scope)])
 
-        proc = await asyncio.create_subprocess_exec(
-            *cmd,
-            stdout=asyncio.subprocess.PIPE,
-            stderr=asyncio.subprocess.PIPE,
-        )
-        stdout, stderr = await proc.communicate()
-        if proc.returncode not in (0, 1):
+        results: list[SearchResult] = []
+        try:
+            proc = await asyncio.create_subprocess_exec(
+                *cmd,
+                stdout=asyncio.subprocess.PIPE,
+                stderr=asyncio.subprocess.PIPE,
+            )
+        except OSError as exc:
+            raise ToolExecutionError(f"rg is not available: {exc}") from exc
+
+        assert proc.stdout is not None
+        try:
+            while len(results) < request.top_k:
+                raw_line = await proc.stdout.readline()
+                if not raw_line:
+                    break
+                try:
+                    event = json.loads(raw_line.decode("utf-8", errors="replace"))
+                except json.JSONDecodeError:
+                    continue
+                if event.get("type") != "match":
+                    continue
+                data = event.get("data", {})
+                path_text = data.get("path", {}).get("text", "")
+                line_number = int(data.get("line_number", 0))
+                lines = data.get("lines", {}).get("text", "").rstrip("\n")
+                rel_path = Path(path_text).resolve().relative_to(self.root).as_posix()
+                results.append(
+                    SearchResult(
+                        type="file",
+                        source="local",
+                        title=Path(rel_path).name,
+                        path=rel_path,
+                        snippet=lines,
+                        score=1.0,
+                        metadata={"line": line_number},
+                    )
+                )
+
+            if len(results) >= request.top_k and proc.returncode is None:
+                proc.terminate()
+            _, stderr = await proc.communicate()
+        except OSError as exc:
+            raise ToolExecutionError(f"rg failed: {exc}") from exc
+        finally:
+            if proc.returncode is None:
+                with suppress(ProcessLookupError):
+                    proc.kill()
+                await proc.wait()
+
+        if proc.returncode not in (0, 1, -15):
             detail = stderr.decode("utf-8", errors="replace").strip()
             raise ToolExecutionError(f"rg failed: {detail}")
-
-        results: list[SearchResult] = []
-        for line in stdout.decode("utf-8", errors="replace").splitlines():
-            if len(results) >= request.top_k:
-                break
-            try:
-                event = json.loads(line)
-            except json.JSONDecodeError:
-                continue
-            if event.get("type") != "match":
-                continue
-            data = event.get("data", {})
-            path_text = data.get("path", {}).get("text", "")
-            line_number = int(data.get("line_number", 0))
-            lines = data.get("lines", {}).get("text", "").rstrip("\n")
-            rel_path = str(Path(path_text).resolve().relative_to(self.root))
-            results.append(
-                SearchResult(
-                    type="file",
-                    source="local",
-                    title=Path(rel_path).name,
-                    path=rel_path,
-                    snippet=lines,
-                    score=1.0,
-                    metadata={"line": line_number},
-                )
-            )
         return results
