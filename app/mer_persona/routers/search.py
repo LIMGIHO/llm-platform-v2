@@ -22,7 +22,7 @@ from app.mer_persona.schemas.search import (
 from app.mer_persona.services.search.agent import answer_search
 from app.mer_persona.services.search.local_files import LocalFileSearchTool
 from app.mer_persona.services.search.market import DisabledMarketDataTool
-from app.mer_persona.services.search.planner import plan_search
+from app.mer_persona.services.search.planner import plan as plan_search
 from app.mer_persona.services.search.tools import ToolExecutionError
 from app.mer_persona.services.search.web import DisabledWebSearchTool
 

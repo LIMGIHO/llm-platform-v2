@@ -179,8 +179,11 @@ async def plan(
     try:
         resp2 = await llm.achat(repair_messages)
         raw2 = resp2.message.content or ""
-        result2, _ = _parse_plan(raw2)
+        result2, errors2 = _parse_plan(raw2)
         if result2 is not None:
+            # preserve any validation errors from the repair attempt
+            if errors2:
+                result2.validation_errors = (result2.validation_errors or []) + errors2
             result2.steps = result2.steps[:max_steps]
             return result2
     except Exception as exc2:

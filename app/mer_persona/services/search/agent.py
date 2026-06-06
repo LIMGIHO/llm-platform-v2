@@ -14,7 +14,7 @@ from app.mer_persona.schemas.search import (
     ToolName,
 )
 from app.mer_persona.services.search.local_files import LocalFileSearchTool
-from app.mer_persona.services.search.planner import plan_search
+from app.mer_persona.services.search.planner import plan
 from app.mer_persona.services.search.tools import ToolExecutionError
 
 
@@ -60,12 +60,12 @@ async def answer_search(
 ) -> SearchAnswerResponse:
     started = time.monotonic()
     trace_id = str(uuid.uuid4())
-    plan = await plan_search(req.query, llm=llm, max_steps=req.max_steps)
+    search_plan = await plan(req.query, llm=llm, max_steps=req.max_steps)
 
     all_results: list[SearchResult] = []
     tool_calls: list[ToolCallRecord] = []
 
-    for step in plan.steps[: req.max_steps]:
+    for step in search_plan.steps[: req.max_steps]:
         step_started = time.monotonic()
         if step.tool == ToolName.FILES:
             file_req = FileSearchRequest(
