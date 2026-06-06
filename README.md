@@ -88,6 +88,11 @@ curl -s -X POST http://localhost:8000/v1/mer/answer \
 | POST | `/v1/mer/answer` | RAG + Intent + Verify 답변 |
 | POST | `/v1/mer/chat` | 단순 대화 (Redis 히스토리) |
 | POST | `/v1/mer/retrieve` | 디버그용 retrieval 결과 |
+| POST | `/v1/search/plan` | 검색 도구 선택 계획 확인 |
+| POST | `/v1/search/answer` | 제한된 Retrieval Agent 답변 |
+| POST | `/v1/search/tools/files` | 로컬 파일 검색 단독 테스트 |
+| POST | `/v1/search/tools/web` | 웹 검색 도구 단독 테스트 |
+| POST | `/v1/search/tools/market` | 시장 데이터 도구 단독 테스트 |
 | GET | `/v1/debug/traces` | 최근 트레이스 목록 |
 | GET | `/v1/debug/traces/{id}` | 트레이스 상세 + 단계별 타이밍 |
 | GET | `/metrics` | Prometheus 메트릭 |
@@ -115,6 +120,12 @@ PG_DSN=postgresql+psycopg://llm-platform:1234@postgres:5432/llm-platform
 QDRANT_URL=http://qdrant:6333
 REDIS_URL=redis://redis:6379/0
 ```
+
+### Search API
+
+`/v1/search/tools/files`는 LLM 없이 동작하는 로컬 파일 검색 도구입니다.
+`/v1/search/tools/web`와 `/v1/search/tools/market`는 provider가 설정되지 않으면 명확한 502 오류를 반환합니다.
+통합 `/v1/search/answer`는 먼저 bounded Retrieval Agent 형태로 파일 검색 경로를 검증하고, provider 설정 후 웹/시장 데이터 도구를 확장합니다.
 
 ---
 
