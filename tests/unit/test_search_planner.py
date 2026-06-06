@@ -168,5 +168,5 @@ def test_search_plan_endpoint_default_max_steps(client):
         client.post("/v1/search/plan", json={"query": "안녕"})
     mock_plan.assert_awaited_once()
     call_args = mock_plan.call_args
-    # max_steps is passed as keyword arg
-    assert call_args.kwargs.get("max_steps", 3) == 3
+    # max_steps must be explicitly forwarded to plan_search
+    assert call_args.kwargs["max_steps"] == 3
