@@ -17,7 +17,7 @@ class ToolRun:
     error: str | None = None
 
 
-RequestT = TypeVar("RequestT")
+RequestT = TypeVar("RequestT", contravariant=True)
 
 
 class SearchTool(Protocol[RequestT]):
