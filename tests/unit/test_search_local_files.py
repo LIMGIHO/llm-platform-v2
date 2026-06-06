@@ -33,6 +33,25 @@ async def test_local_file_search_rejects_missing_scope(tmp_path: Path):
 
 
 @pytest.mark.asyncio
+async def test_local_file_search_rejects_symlink_scope_escape(tmp_path: Path):
+    root = tmp_path / "root"
+    outside = tmp_path / "root-sibling"
+    root.mkdir()
+    outside.mkdir()
+    (outside / "secret.txt").write_text("needle\n", encoding="utf-8")
+    link = root / "outside-link"
+    try:
+        link.symlink_to(outside, target_is_directory=True)
+    except OSError as exc:
+        pytest.skip(f"symlink creation unavailable: {exc}")
+
+    tool = LocalFileSearchTool(root=root)
+    with pytest.raises(ToolExecutionError) as exc:
+        await tool.search(FileSearchRequest(query="needle", path_scope="outside-link"))
+    assert "escapes configured search root" in str(exc.value)
+
+
+@pytest.mark.asyncio
 async def test_local_file_search_respects_top_k(tmp_path: Path):
     root = tmp_path
     target = root / "notes.txt"

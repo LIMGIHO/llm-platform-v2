@@ -17,8 +17,10 @@ class LocalFileSearchTool:
 
     async def search(self, request: FileSearchRequest) -> list[SearchResult]:
         scope = (self.root / request.path_scope).resolve()
-        if not str(scope).startswith(str(self.root)):
-            raise ToolExecutionError("path_scope escapes configured search root")
+        try:
+            scope.relative_to(self.root)
+        except ValueError as exc:
+            raise ToolExecutionError("path_scope escapes configured search root") from exc
         if not scope.exists():
             raise ToolExecutionError(f"path_scope does not exist: {request.path_scope}")
 
