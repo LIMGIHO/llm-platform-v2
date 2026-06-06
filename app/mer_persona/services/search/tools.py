@@ -2,9 +2,9 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Protocol
+from typing import Protocol, TypeVar
 
-from app.mer_persona.schemas.search import SearchResult
+from app.mer_persona.schemas.search import SearchResult, ToolName
 
 
 class ToolExecutionError(RuntimeError):
@@ -17,9 +17,12 @@ class ToolRun:
     error: str | None = None
 
 
-class SearchTool(Protocol):
-    name: str
+RequestT = TypeVar("RequestT")
 
-    async def search(self, request):
+
+class SearchTool(Protocol[RequestT]):
+    name: ToolName
+
+    async def search(self, request: RequestT) -> list[SearchResult]:
         """Execute a tool-specific search request."""
         ...

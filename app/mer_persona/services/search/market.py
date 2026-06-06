@@ -1,12 +1,12 @@
 """Market data tool providers."""
 from __future__ import annotations
 
-from app.mer_persona.schemas.search import MarketSearchRequest, SearchResult
+from app.mer_persona.schemas.search import MarketSearchRequest, SearchResult, ToolName
 from app.mer_persona.services.search.tools import ToolExecutionError
 
 
 class DisabledMarketDataTool:
-    name = "market_data"
+    name = ToolName.MARKET
 
     async def search(self, request: MarketSearchRequest) -> list[SearchResult]:
         raise ToolExecutionError(
