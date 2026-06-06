@@ -9,7 +9,7 @@ class Settings(BaseSettings):
     LMSTUDIO_CHAT_MODEL: str = "google/gemma-4-e4b"
     LMSTUDIO_MODEL_ROUTER: str = "qwen3.5-4b-claude-4.6-opus-reasoning-distilled"
     LMSTUDIO_MODEL_VERIFIER: str = "qwen/qwen3.5-9b"
-    LMSTUDIO_EMBED_MODEL: str = "text-embedding-bge-m3"
+    LMSTUDIO_EMBED_MODEL: str = "bge-m3"
     LMSTUDIO_CTX: int = 8192
     LLM_TIMEOUT_SEC: int = 180
 
@@ -31,6 +31,14 @@ class Settings(BaseSettings):
     HYBRID_ALPHA: float = 0.5
     RERANKER_MODEL: str = "BAAI/bge-reranker-v2-m3"
     STYLE_TOP_K: int = 3         # few-shot 예시 수
+
+    # Search API
+    SEARCH_MAX_STEPS: int = 3
+    SEARCH_TOOL_TIMEOUT_SEC: int = 10
+    SEARCH_FILE_ROOT: str = "."
+    SEARCH_FILE_TOP_K: int = 10
+    SEARCH_WEB_PROVIDER: str = "disabled"
+    SEARCH_MARKET_PROVIDER: str = "disabled"
 
     # Style pack (batch ingest)
     STYLE_AUTHOR: str = ""       # 이 작성자 댓글만 스타일용으로 사용. 빈 값=전체
