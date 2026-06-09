@@ -66,12 +66,24 @@ def _load_unindexed_posts(since: str | None = None) -> list[dict]:
     return posts
 
 
-def _existing_node_hashes() -> set[str]:
+def _node_key(source_id: str, chunk_no) -> str:
+    """blog 노드 dedup 키 — (source_id, chunk_no) 조합.
+
+    한 포스트는 여러 청크로 쪼개지므로 source_id 단독으로는 dedup할 수 없고,
+    (과거처럼) node_hash(본문 해시)로 dedup하면 서로 다른 포스트의 동일 본문 청크가
+    충돌해 mer_nodes 행을 못 받고 매 실행마다 재임베딩되는 버그가 생긴다.
+    → (source_id, chunk_no) 조합을 키로 쓴다.
+    """
+    return f"{source_id}::{chunk_no}"
+
+
+def _existing_node_keys() -> set[str]:
     from sqlalchemy import text
     with get_sync_session() as session:
         return {
-            row[0] for row in session.execute(
-                text("SELECT hash FROM mer_nodes WHERE source_type = 'blog'")
+            _node_key(str(row[0]), row[1])
+            for row in session.execute(
+                text("SELECT source_id, chunk_no FROM mer_nodes WHERE source_type = 'blog'")
             )
         }
 
@@ -79,7 +91,12 @@ def _existing_node_hashes() -> set[str]:
 def _record_nodes_batch(nodes, existing: set[str]) -> None:
     from sqlalchemy import text
 
-    new_nodes = [n for n in nodes if n.metadata.get("node_hash", "") not in existing]
+    new_nodes = [
+        n for n in nodes
+        if _node_key(
+            str(n.metadata.get("post_id_src", "")), n.metadata.get("chunk_no", 0)
+        ) not in existing
+    ]
     if not new_nodes:
         return
 
@@ -105,7 +122,9 @@ def _record_nodes_batch(nodes, existing: set[str]) -> None:
         )
 
     for n in new_nodes:
-        existing.add(n.metadata.get("node_hash", ""))
+        existing.add(
+            _node_key(str(n.metadata.get("post_id_src", "")), n.metadata.get("chunk_no", 0))
+        )
 
 
 def run(since: str | None = None, dry_run: bool = False) -> None:
@@ -157,7 +176,7 @@ def run(since: str | None = None, dry_run: bool = False) -> None:
 
     embed_model = build_embed_model(settings)
     qclient = qdrant_writer.get_client(settings.QDRANT_URL, settings.QDRANT_API_KEY)
-    existing_hashes = _existing_node_hashes()
+    existing_keys = _existing_node_keys()
 
     processed_nodes: list = []
 
@@ -167,7 +186,7 @@ def run(since: str | None = None, dry_run: bool = False) -> None:
         batch = nodes[i: i + _EMBED_BATCH]
         vecs = embed_model.get_text_embedding_batch([n.text for n in batch])
         qdrant_writer.upsert_nodes(qclient, _COLLECTION, batch, vecs)
-        _record_nodes_batch(batch, existing_hashes)
+        _record_nodes_batch(batch, existing_keys)
         processed_nodes.extend(batch)
 
     logger.info("ingest_blog.upserted", count=len(processed_nodes))

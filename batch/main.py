@@ -1,4 +1,6 @@
 """batch 컨테이너 CLI 진입점."""
+import logging
+
 import typer
 
 app = typer.Typer(help="llm-platform-v2 배치 작업 CLI")
@@ -51,8 +53,16 @@ def ingest_naver(
     interval_sec = settings.NAVER_POLL_INTERVAL_SEC
 
     typer.echo(f"[ingest-naver] scheduler start — interval={interval_sec}s (backfill 동시 실행)")
-    run()           # 시작 시 즉시 1회 실행
-    run_backfill()  # 백필도 즉시 1회 실행
+    # 시작 시 즉시 1회 실행 — 한 레코드의 오류가 컨테이너를 죽이고
+    # restart 루프(스케줄러 도달 전 재시작)를 만들지 않도록 예외를 격리한다.
+    try:
+        run()
+    except Exception:
+        logging.getLogger("batch.main").exception("[ingest-naver] 초기 run() 실패 — 스케줄러는 계속 진행")
+    try:
+        run_backfill()
+    except Exception:
+        logging.getLogger("batch.main").exception("[ingest-naver] 초기 run_backfill() 실패 — 스케줄러는 계속 진행")
 
     scheduler = BlockingScheduler(timezone="UTC")
     scheduler.add_job(run, "interval", seconds=interval_sec, id="ingest_naver")

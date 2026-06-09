@@ -38,6 +38,15 @@ def _sha256(text: str) -> str:
     return hashlib.sha256(text.encode()).hexdigest()
 
 
+def _strip_nul(s: str) -> str:
+    """PostgreSQL TEXT 컬럼은 NUL(0x00) 바이트를 저장할 수 없으므로 제거한다.
+
+    네이버 댓글/본문에 드물게 섞여 들어오는 NUL이 INSERT 시
+    psycopg.DataError를 일으켜 배치 전체를 크래시시키는 것을 방지한다.
+    """
+    return s.replace("\x00", "") if s else s
+
+
 def _start_batch_job() -> int | None:
     try:
         with get_sync_session() as session:
@@ -170,6 +179,7 @@ def _fetch_post(blog_id: str, rss_item: dict, ua: str) -> dict[str, Any] | None:
         or soup.find("div", id="postViewArea")
     )
     raw_text = content_div.get_text(separator="\n", strip=True) if content_div else ""
+    raw_text = _strip_nul(raw_text)
     if not raw_text:
         logger.warning("ingest_naver.post_empty", log_no=log_no)
         return None
@@ -184,7 +194,7 @@ def _fetch_post(blog_id: str, rss_item: dict, ua: str) -> dict[str, Any] | None:
 
     return {
         "post_id_src": log_no,
-        "title": title,
+        "title": _strip_nul(title),
         "url": f"https://blog.naver.com/{blog_id}/{log_no}",
         "published_at": published_at,
         "category": rss_item.get("category", ""),
@@ -239,10 +249,10 @@ def _fetch_comments(blog_id: str, blog_no: str, log_no: str, ua: str,
         result = data.get("result", {})
         comment_list = result.get("commentList", [])
         for c in comment_list:
-            body = (c.get("contents") or "").strip()
+            body = _strip_nul((c.get("contents") or "")).strip()
             if not body:
                 continue
-            author = c.get("userName") or c.get("maskedUserId") or ""
+            author = _strip_nul(c.get("userName") or c.get("maskedUserId") or "")
             written_at_str = c.get("modTime") or c.get("regTime") or ""
             written_at: datetime | None = None
             if written_at_str:

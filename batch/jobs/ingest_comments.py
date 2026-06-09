@@ -71,12 +71,18 @@ def _is_style_worthy(body: str, author: str, settings) -> bool:
     return True
 
 
-def _existing_node_hashes() -> set[str]:
+def _existing_node_source_ids() -> set[str]:
+    """이미 인덱싱된 댓글의 source_id(comment_id) 집합.
+
+    dedup 키를 source_id로 통일한다. (과거엔 node_hash=본문해시로 dedup해서,
+    본문이 동일한 서로 다른 댓글이 영원히 mer_nodes 행을 못 받고
+    매 실행마다 재임베딩되는 버그가 있었다.)
+    """
     from sqlalchemy import text
     with get_sync_session() as session:
         return {
-            row[0] for row in session.execute(
-                text("SELECT hash FROM mer_nodes WHERE source_type = 'comment'")
+            str(row[0]) for row in session.execute(
+                text("SELECT source_id FROM mer_nodes WHERE source_type = 'comment'")
             )
         }
 
@@ -99,9 +105,13 @@ def _doc_to_node(doc, source_type: str):
 
 
 def _record_nodes_batch(nodes, existing: set[str]) -> None:
+    """nodes를 mer_nodes에 기록한다. dedup 키는 source_id(comment_id)."""
     from sqlalchemy import text
 
-    new_nodes = [n for n in nodes if n.metadata.get("node_hash", "") not in existing]
+    new_nodes = [
+        n for n in nodes
+        if str(n.metadata.get("comment_id", "")) not in existing
+    ]
     if not new_nodes:
         return
 
@@ -127,7 +137,7 @@ def _record_nodes_batch(nodes, existing: set[str]) -> None:
         )
 
     for n in new_nodes:
-        existing.add(n.metadata.get("node_hash", ""))
+        existing.add(str(n.metadata.get("comment_id", "")))
 
 
 def _record_style_batch(docs, existing: set[str]) -> None:
@@ -211,7 +221,7 @@ def run(dry_run: bool = False) -> None:
 
     embed_model = build_embed_model(settings)
     qclient = qdrant_writer.get_client(settings.QDRANT_URL, settings.QDRANT_API_KEY)
-    existing_node_hashes = _existing_node_hashes()
+    existing_node_source_ids = _existing_node_source_ids()
     existing_style_ids = _existing_style_ids()
 
     total_comments = 0
@@ -225,7 +235,7 @@ def run(dry_run: bool = False) -> None:
         # mer_comments
         batch_nodes = [_doc_to_node(d, "comment") for d in batch_docs]
         qdrant_writer.upsert_nodes(qclient, _COMMENT_COLLECTION, batch_nodes, vecs)
-        _record_nodes_batch(batch_nodes, existing_node_hashes)
+        _record_nodes_batch(batch_nodes, existing_node_source_ids)
         total_comments += len(batch_nodes)
 
         # mer_style — 이미 계산된 벡터 재활용

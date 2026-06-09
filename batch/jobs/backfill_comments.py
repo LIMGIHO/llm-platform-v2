@@ -21,7 +21,10 @@ from batch.jobs.ingest_naver import _fetch_comments, _save_comments
 
 logger = get_logger(__name__)
 
-_STATE_FILE = Path("data/backfill_comments_done.txt")
+# 진행 상황 파일은 마운트된 데이터 볼륨(BATCH_DATA_DIR, 기본 /data) 아래 절대경로로 둔다.
+# (과거엔 상대경로 "data/..."라 WORKDIR(/workspace) 기준으로 잡혀 마운트되지 않은
+#  /workspace/data 를 가리켰고, 컨테이너 재시작마다 진행상황이 사라졌다.)
+_STATE_FILE = Path(get_settings().BATCH_DATA_DIR) / "backfill_comments_done.txt"
 
 
 # ── 상태 파일 I/O ─────────────────────────────────────────────────────────────
