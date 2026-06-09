@@ -25,12 +25,14 @@ _SYSTEM_PROMPT = """\
 도구 목록: web_search | market_data | local_file_search | rag_search
 
 강한 규칙:
-- 시세·환율·주가·지수·코인 → market_data만 (web_search 절대 금지)
-- 인사·잡담·시스템 기능 질문 → intent=smalltalk, steps=[]
-- 블로그 글 목록·날짜·발행 순 조회 → intent=blog_list, steps=[]
+- 시세·환율·주가·지수·코인 → market_data만 (web_search 절대 금지, mixed일 때도 동일)
+- 인사·잡담·"뭐 할 수 있어?"·"어떤 기능 있어?" 등 기능 질문 → intent=smalltalk, steps=[]
+- 블로그 글 목록·날짜·발행 순 조회, "새 글/신규 포스트/오늘·최근 올라온 글 있어?" 등 글 존재·목록 확인 → intent=blog_list, steps=[] (web_search 아님 — 여기서 "글/포스트"는 이 블로그의 글을 뜻함)
+- "내가 저장한"·"내 거래 내역"·"내 계좌"·"관심 종목"·개인 앱 데이터 → intent=reject, steps=[] (local_file_search 아님)
 - 처리 불가(내부 DB·개인 데이터) → intent=reject, steps=[]
 - 블로그 글 내용 설명·요약·분석 → intent=blog_rag, steps=[rag_search]
-- 로컬 코드·파일·설정 검색 → intent=file_search, steps=[local_file_search]
+- local_file_search는 오직 이 프로젝트의 소스코드·설정파일·문서 검색에만 쓴다 (예: "intent_router 어디 있어", "config 설정 찾아줘"). 개인 데이터(거래 내역·관심 종목·계좌·포트폴리오)는 절대 local_file_search 아님 → reject
+- 로컬 프로젝트 코드·파일·설정 검색 → intent=file_search, steps=[local_file_search]
 - 최신 뉴스·공개 웹 정보 → intent=web_search, steps=[web_search]
 - 여러 정보 출처가 필요하면 → intent=mixed, steps에 필요한 도구 나열
 
@@ -44,9 +46,15 @@ Q: 조선업 메르 블로그 내용 설명해줘 → {"intent":"blog_rag","step
 Q: 최근 HMM 뉴스 찾아줘 → {"intent":"web_search","steps":[{"tool":"web_search","query":"HMM 최신 뉴스"}],"reason":"최신 웹 검색"}
 Q: 이 프로젝트에서 intent_router 어디 있어? → {"intent":"file_search","steps":[{"tool":"local_file_search","query":"intent_router"}],"reason":"로컬 파일 검색"}
 Q: 최근 올라온 블로그 글 목록 보여줘 → {"intent":"blog_list","steps":[],"reason":"블로그 글 목록 조회"}
+Q: 새 글 올라온 거 있어? → {"intent":"blog_list","steps":[],"reason":"신규 글 존재 확인은 블로그 목록"}
 Q: 안녕 → {"intent":"smalltalk","steps":[],"reason":"인사"}
-Q: 내 포트폴리오 수익률 알려줘 → {"intent":"reject","steps":[],"reason":"내부 DB 접근 불가"}
+Q: 뭐 할 수 있어? → {"intent":"smalltalk","steps":[],"reason":"기능 질문은 잡담"}
+Q: 내 포트폴리오 수익률 알려줘 → {"intent":"reject","steps":[],"reason":"개인 앱 DB 접근 불가"}
+Q: 내가 저장한 관심 종목 보여줘 → {"intent":"reject","steps":[],"reason":"개인 저장 데이터 접근 불가"}
+Q: 내 거래 내역 조회해줘 → {"intent":"reject","steps":[],"reason":"개인 거래 데이터 접근 불가"}
 Q: 메르 블로그 조선업 내용이랑 최신 뉴스 같이 정리해줘 → {"intent":"mixed","steps":[{"tool":"rag_search","query":"조선업"},{"tool":"web_search","query":"조선업 최신 뉴스"}],"reason":"복합 검색"}
+Q: HMM 메르 블로그 분석이랑 현재 주가 같이 알려줘 → {"intent":"mixed","steps":[{"tool":"rag_search","query":"HMM"},{"tool":"market_data","query":"HMM 주가"}],"reason":"복합: 블로그RAG+시세"}
+Q: 반도체 메르 관점 분석과 삼성전자 주가 알려줘 → {"intent":"mixed","steps":[{"tool":"rag_search","query":"반도체"},{"tool":"market_data","query":"삼성전자 주가"}],"reason":"복합: 블로그RAG+시세"}
 """
 
 
@@ -103,6 +111,29 @@ def _parse_plan(raw: str) -> tuple[SearchPlanResponse | None, list[str]]:
             errors.append(f"steps[{i}]: query가 비어 있음")
             continue
         steps.append(ToolCallRequest(tool=tool, query=query))
+
+    # market_data intent이면 모든 step을 시세 도구로 교정 — 강한 규칙(시세→market_data만) 강제
+    # (예: intent=market_data인데 step이 web_search로 새는 경우 도구만 market_data로 바꿔 query 보존)
+    if intent == "market_data":
+        steps = [ToolCallRequest(tool=ToolName.MARKET, query=s.query) for s in steps]
+
+    # 같은 도구는 한 번만 유지 — 모델이 같은 도구를 query만 바꿔 중복 출력하는 경우 방지
+    # (예: rag_search "HMM" + rag_search "HMM 관련내용" → 첫 step만 남김)
+    seen_tools: set[ToolName] = set()
+    deduped: list[ToolCallRequest] = []
+    for s in steps:
+        if s.tool not in seen_tools:
+            seen_tools.add(s.tool)
+            deduped.append(s)
+    steps = deduped
+
+    # stepless intent는 도구를 호출하지 않는다 — 모델이 잡음 step을 붙여도 강제로 비움
+    if intent in {"smalltalk", "blog_list", "reject"}:
+        steps = []
+
+    # steps에 서로 다른 tool이 2개 이상이면 intent를 mixed로 보정
+    if len({s.tool for s in steps}) > 1 and intent != "mixed":
+        intent = "mixed"
 
     reason = str(data.get("reason", "")).strip()
     return (
