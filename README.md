@@ -1,13 +1,16 @@
 # llm-platform-v2
 
-메르(머니스미스) 페르소나 RAG QA 플랫폼 v2.  
+경제 블로거 메르의 글과 댓글을 검색해 질문에 답하고, 근거가 된 원문을 함께 보여주는 개인 프로젝트입니다.
+
 LlamaIndex + LM Studio + Qdrant + Postgres + Redis.
 
-[메르 챗봇 열기](https://merbl-filter.vercel.app/posts?merChat=all) · 경제 블로그의 글과 댓글을 검색해 답변과 원문 출처를 확인할 수 있습니다.
+[Vercel에서 공개 챗봇 사용해 보기](https://merbl-filter.vercel.app/posts?merChat=all)
 
 ---
 
-## 아키텍처
+## 질의응답 API 구조 (`/v1/mer/answer`)
+
+아래 도식은 이 저장소의 질의응답 API가 질문을 처리하는 과정입니다. 위 데모는 별도의 공개 채팅 경로를 사용합니다.
 
 ```
 사용자 질문
@@ -50,7 +53,13 @@ LM Studio에서 다음 모델을 다운로드하고 서버를 `0.0.0.0:1234`로 
 | `qwen/qwen3.5-9b` | Verifier |
 | `text-embedding-bge-m3` | Embedding (1024-dim) |
 
-### 3. 인프라 + 앱 기동
+### 3. 환경 설정 및 기동
+
+처음 실행할 때는 예제 환경 파일을 복사한 뒤 모델과 데이터베이스 연결 값을 확인합니다.
+
+```bash
+cp -n deploy/env/.env.example deploy/env/.env
+```
 
 ```bash
 make up-infra       # Postgres, Qdrant, Redis
@@ -104,13 +113,7 @@ curl -s -X POST http://localhost:8000/v1/mer/answer \
 
 ## 설정 (`.env`)
 
-`deploy/env/.env.example`을 복사해서 수정:
-
-```bash
-cp deploy/env/.env.example deploy/env/.env
-```
-
-주요 설정:
+빠른 시작에서 준비한 `deploy/env/.env`의 주요 설정은 다음과 같습니다.
 
 ```dotenv
 LMSTUDIO_BASE_URL=http://host.docker.internal:1234/v1
@@ -134,7 +137,7 @@ REDIS_URL=redis://redis:6379/0
 ## 개발
 
 ```bash
-make test     # pytest (57개 단위 테스트)
+make test     # pytest 단위 테스트 실행
 make lint     # ruff check
 make fmt      # ruff format
 
@@ -174,6 +177,6 @@ llm-platform-v2/
 ├── infra/
 │   └── migrations/        # SQL 스키마
 └── tests/
-    ├── unit/              # 57개 단위 테스트
+    ├── unit/              # 단위 테스트
     └── eval/              # 30개 평가셋 + runner
 ```
