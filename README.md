@@ -3,6 +3,8 @@
 메르(머니스미스) 페르소나 RAG QA 플랫폼 v2.  
 LlamaIndex + LM Studio + Qdrant + Postgres + Redis.
 
+[메르 챗봇 열기](https://merbl-filter.vercel.app/posts?merChat=all) · 경제 블로그의 글과 댓글을 검색해 답변과 원문 출처를 확인할 수 있습니다.
+
 ---
 
 ## 아키텍처
